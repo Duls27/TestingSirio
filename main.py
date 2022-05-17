@@ -16,6 +16,7 @@ df_config["path_folder_screenshot"]=path_desktop + "/SirioUI/Screenshot/"
 if not os.path.exists(df_config.iloc[0]["path_folder_screenshot"]):
     os.mkdir(df_config.iloc[0]["path_folder_screenshot"])
 
+
 #open chromebrowser and specific site
 try:
     #chrome_options = webdriver.ChromeOptions()
@@ -28,4 +29,4 @@ except IOError:
 
 driver.get(df_config.iloc[0]['link_piattaforma']) #Open Page to platform
 
-test_manager.test_gateway(chrdriver=driver, path_bootstrap_excel=path_bootstrap_excel)
+test_manager.test_gateway(chrdriver=driver, path_bootstrap_excel=path_bootstrap_excel, n_row_to_test=0)
