@@ -1,4 +1,5 @@
 import email, os, imaplib, re
+import time
 from email.header import decode_header
 
 import pandas as pd
@@ -79,7 +80,18 @@ def get_tmp_pwd_from_emails (mails):
     return password_tmp
 
 
-
+def await_receipt_of_email (username, password):
+    # create an IMAP4 class with SSL
+    imap = imaplib.IMAP4_SSL("imap.gmail.com")
+    # authenticate
+    imap.login(username, password)
+    messages=0
+    while messages<1:
+        status, messages = imap.select("INBOX")
+        # total number of emails
+        messages = int(messages[0])
+        if messages<1:
+            time.sleep(3)
 
 
 def delete_all_emails (username, password):

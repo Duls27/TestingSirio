@@ -1,47 +1,19 @@
-import time, pandas as pd
+import pandas as pd
 from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver import ActionChains
 import email_manager, support_functions, file_manager
 
 
-def check_structure_existence (chrdriver: webdriver.Chrome ,path_bootstrap_excel):
+def check_structure_existence (chrdriver: webdriver.Chrome ,path_bootstrap_excel, struttura):
 
     df_config_info=file_manager.get_info_from_excel(path_bootstrap=path_bootstrap_excel, sheet_name='config_info')
     df_users_info = file_manager.get_info_from_excel(path_bootstrap=path_bootstrap_excel, sheet_name='users_info')
     #enter in platform as Admin
     chrdriver=support_functions.enter_password_double_check(chrdriver, df_users_info["admin"])
-
-    #######################################       PROJECT MANAJER       ################################################
-    # check if exist refertatore
-
-    chrdriver.find_element_by_link_text("Gestione Utenti").click()
-    chrdriver.find_element_by_link_text("Project Manager").click()
-    pms_name = chrdriver.find_element_by_id("id_utente").find_elements_by_tag_name("option")
-    flag_create_pm = 1
-    for pm in pms_name:
-        if df_users_info.iloc[0]["pm"] in pm.text:
-            flag_create_pm = 0
-            break
-    if flag_create_pm == 1:
-        create_pm(chrdriver=chrdriver, df_users_info=df_users_info, df_config_info=df_config_info)
-        chrdriver = support_functions.enter_password_double_check(chrdriver, df_users_info["admin"])#Enter as admin
-
-    
-
-    #####################################       CARDIO       ######################################################
-    # check if exist refertatore
-    chrdriver.find_element_by_link_text("Gestione Utenti").click()
-    chrdriver.find_element_by_link_text("Refertatori").click()
-    cardios_name = chrdriver.find_element_by_id("id_utente").find_elements_by_tag_name("option")
-    flag_create_cardio = 1
-    for cardio in cardios_name:
-        if df_users_info.iloc[0]["cardio"] in cardio.text:
-            flag_create_cardio = 0
-            break
-    if flag_create_cardio == 1:
-        create_cardio(chrdriver=chrdriver, df_users_info=df_users_info, df_config_info=df_config_info)
-        chrdriver = support_functions.enter_password_double_check(chrdriver, df_users_info["admin"])#Enter as admin
 
     ###########################################       GRUPPO       #####################################################
     # check if exist gruppo
@@ -55,41 +27,76 @@ def check_structure_existence (chrdriver: webdriver.Chrome ,path_bootstrap_excel
             break
     if flag_create_group == 1:
         create_gruppo(chrdriver=chrdriver, df_users_info=df_users_info)
+        chrdriver.get(struttura)
         chrdriver = support_functions.enter_password_double_check(chrdriver, df_users_info["admin"])  # Enter as admin
 
+    #######################################       PROJECT MANAJER       ################################################
+    # check if exist refertatore
+
+    chrdriver.find_element_by_link_text("Gestione Utenti").click()
+    chrdriver.find_element_by_link_text("Project Manager").click()
+    pms_name = chrdriver.find_element_by_id("id_utente").find_elements_by_tag_name("option")
+    flag_create_pm = 1
+    for pm in pms_name:
+        if df_users_info.iloc[0]["pm"] in pm.text:
+            flag_create_pm = 0
+            break
+    if flag_create_pm == 1:
+        create_pm(chrdriver=chrdriver, df_users_info=df_users_info, df_config_info=df_config_info, struttura=struttura)
+        chrdriver.get(struttura)
+        chrdriver = support_functions.enter_password_double_check(chrdriver, df_users_info["admin"])#Enter as admin
 
 
     #########################################       OPER SITE       ####################################################
     # check if exist refertatore
     chrdriver.find_element_by_link_text("Configura Strutture").click()
     chrdriver.find_element_by_link_text("Territoriali").click()
-    territoriali = chrdriver.find_element_by_id("id_centro_raccolta").find_elements_by_tag_name("option")
-    flag_create_opersite = 1
-    for territoriale in territoriali:
-        if str(df_users_info.iloc[0]["struttura"]) in territoriale.text:
-            flag_create_opersite = 0
-            break
+    try:
+        territoriali = chrdriver.find_element_by_id("id_centro_raccolta").find_elements_by_tag_name("option")
+    except:
+        territoriali = chrdriver.find_element_by_id("id_struttura_territoriale").find_elements_by_tag_name("option") #MM
+
+        flag_create_opersite = 1
+        for territoriale in territoriali:
+            if str(df_users_info.iloc[0]["struttura"]) in territoriale.text:
+                flag_create_opersite = 0
+                break
+
     if flag_create_opersite == 1:
-        create_territoriale(chrdriver=chrdriver, df_users_info=df_users_info, df_config_info=df_config_info)
+        create_territoriale(chrdriver=chrdriver, df_users_info=df_users_info, df_config_info=df_config_info, struttura=struttura)
+        chrdriver.get(struttura)
         chrdriver = support_functions.enter_password_double_check(chrdriver, df_users_info["admin"])  # Enter as admin
 
-    return
+   #####################################       CARDIO       ######################################################
+    # check if exist refertatore
+    chrdriver.find_element_by_link_text("Gestione Utenti").click()
+    chrdriver.find_element_by_link_text("Refertatori").click()
+    cardios_name = chrdriver.find_element_by_id("id_utente").find_elements_by_tag_name("option")
+    flag_create_cardio = 1
+    for cardio in cardios_name:
+        if df_users_info.iloc[0]["cardio"] in cardio.text:
+            flag_create_cardio = 0
+            break
+    if flag_create_cardio == 1:
+        create_cardio(chrdriver=chrdriver, df_users_info=df_users_info, df_config_info=df_config_info, struttura=struttura)
+        chrdriver.get(struttura)
 
 
 
+################################## FUNCTIONS FOR CREATION OF USERS #################################################
 
-    ################################## FUNCTIONS FOR CREATION OF USERS #################################################
 
+####################################### PM FUNCTIONS ###############################################################
 
-    ####################################### PM FUNCTIONS ###############################################################
+def create_pm (chrdriver: webdriver.Chrome , df_config_info: pd.DataFrame, df_users_info: pd.DataFrame, struttura):
 
-def create_pm (chrdriver: webdriver.Chrome , df_config_info: pd.DataFrame, df_users_info: pd.DataFrame):
-
-    email_manager.delete_all_emails(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
+    #email_manager.delete_all_emails(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
     fill_pm( chrdriver,df_config_info=df_config_info, df_users_info=df_users_info)
-    time.sleep(3.0)
+    email_manager.await_receipt_of_email(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
     mails = email_manager.get_google_emails(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
     pm_tmp_pwd=email_manager.get_tmp_pwd_from_emails(mails)
+
+    chrdriver.get(struttura)
     #do_first acces
     keys=["username","password","nuova_password", "ridigita_nuova_password"]
     values=[df_users_info.iloc[0]["pm"], pm_tmp_pwd ,df_users_info.iloc[1]["pm"],df_users_info.iloc[1]["pm"]]
@@ -100,13 +107,11 @@ def create_pm (chrdriver: webdriver.Chrome , df_config_info: pd.DataFrame, df_us
             field.submit()
 
     chrdriver.find_element_by_id("cambio_password").click()
-    chrdriver.find_element_by_xpath("//*[@id='navbar']/ul/form/button").click()  # logout
 
 
 
 def fill_pm (chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_users_info: pd.DataFrame):
-
-    chrdriver.find_element_by_xpath("/html/body/div[4]/div/div/div/form[2]/input").click()
+    chrdriver.find_element_by_xpath('//input[@value="Nuovo Project Manager"]').click()
     fillig_dict=dict({"nome": "Selenium" ,"cognome": "pm","datadinascita": "20-11-1998","luogodinascita": "CardioCalm","indirizzo_email": df_config_info.iloc[0]["email"]  ,"numero_cellulare": "1234567890", "username": df_users_info.iloc[0]["pm"]})
 
     # filliig New Administrator
@@ -118,20 +123,25 @@ def fill_pm (chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_users_
     chrdriver.find_element_by_id("dati_sensibili").click()
     chrdriver.find_element_by_id("autenticazione-0").click()  #sirio internal user
 
+    gruppo = chrdriver.find_element_by_xpath("//*[@id='gruppo_centri_raccolta_ecg']/option[text()= '{}']".format(df_users_info.iloc[0]["gruppo"]))
+    gruppo.click()
+
     chrdriver.find_element_by_id("Salva").click()  # sirio
-    chrdriver.find_element_by_xpath("//*[@id='navbar']/ul/form/button").click()
 
 
-  ########################################## CARDIO FUNCTIONS ##########################################################
 
-def create_cardio(chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_users_info: pd.DataFrame):
+########################################## CARDIO FUNCTIONS ##########################################################
+
+def create_cardio(chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_users_info: pd.DataFrame, struttura):
 
     email_manager.delete_all_emails(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
     fill_cardio(chrdriver, df_config_info=df_config_info, df_users_info=df_users_info)
-    time.sleep(3.0)
+    email_manager.await_receipt_of_email(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
 
     mails = email_manager.get_google_emails(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
     pm_tmp_pwd = email_manager.get_tmp_pwd_from_emails(mails)
+
+    chrdriver.get(struttura)
     # do_first acces
     keys = ["username", "password", "nuova_password", "ridigita_nuova_password"]
     values = [df_users_info.iloc[0]["cardio"], pm_tmp_pwd, df_users_info.iloc[1]["cardio"], df_users_info.iloc[1]["cardio"]]
@@ -142,12 +152,11 @@ def create_cardio(chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_u
             field.submit()
 
     chrdriver.find_element_by_id("cambio_password").click()
-    chrdriver.find_element_by_xpath("//*[@id='navbar']/ul/form/button").click()  # logout
 
 
 def fill_cardio (chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_users_info: pd.DataFrame):
 
-    chrdriver.find_element_by_xpath("/html/body/div[4]/div/div/div/form[2]/input").click()
+    chrdriver.find_element_by_xpath('//input[@value="Nuovo Cardiologo"]').click()
     fillig_dict = dict(
         {"nome": "Selenium", "cognome": "cardio", "datadinascita": "20-11-1998", "luogodinascita": "CardioCalm",
          "indirizzo_email": df_config_info.iloc[0]["email"], "numero_cellulare": "1234567890",
@@ -163,11 +172,21 @@ def fill_cardio (chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_us
     chrdriver.find_element_by_id("supervisore").click()
     chrdriver.find_element_by_id("autenticazione-0").click()  # sirio internal user
 
+    gruppo = chrdriver.find_element_by_xpath("//*[@id='gruppo_centri_raccolta_ecg']/option[text()= '{}']".format(df_users_info.iloc[0]["gruppo"]))
+    chrdriver.find_element_by_xpath(gruppo).click()
+
+    select = Select(chrdriver.find_element_by_id("tipi_esame"))
+    n_servizi = len(select.options)
+    from_element = chrdriver.find_element_by_xpath("//*[@id='tipi_esame']/option[1]")
+    to_element = chrdriver.find_element_by_xpath("//*[@id='tipi_esame']/option[{}]".format(n_servizi))
+    action = ActionChains(chrdriver)
+    action.click_and_hold(from_element).move_to_element(to_element).perform()
+
+
     chrdriver.find_element_by_id("Salva").click()  # sirio
-    chrdriver.find_element_by_xpath("//*[@id='navbar']/ul/form/button").click()
 
 
-  ########################################### GRUPPO FUNCTIONS ########################################################
+########################################### GRUPPO FUNCTIONS ########################################################
 
 def create_gruppo (chrdriver: webdriver.Chrome, df_users_info: pd.DataFrame):
 
@@ -176,15 +195,28 @@ def create_gruppo (chrdriver: webdriver.Chrome, df_users_info: pd.DataFrame):
     name.send_keys(df_users_info.iloc[0]["gruppo"])
     chrdriver.find_element_by_id("Salva").click()
 
-    chrdriver.find_element_by_xpath("//*[@id='navbar']/ul/form/button").click()
 
-    ####################################### TERRITORIALE E OPER FUNCTIONS ##############################################
+####################################### TERRITORIALE E OPER FUNCTIONS ##############################################
 
-def create_territoriale (chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_users_info: pd.DataFrame):
+def create_territoriale (chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame,df_users_info: pd.DataFrame, struttura):
 
-    #email_manager.delete_all_emails(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
+    email_manager.delete_all_emails(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
     fill_territoriale(chrdriver, df_config_info=df_config_info, df_users_info=df_users_info)
-    time.sleep(3.0)
+    email_manager.await_receipt_of_email(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
+    mails = email_manager.get_google_emails(df_config_info.iloc[0]["email"], df_config_info.iloc[1]["email"])
+    pm_tmp_pwd = email_manager.get_tmp_pwd_from_emails(mails)
+    # do_first acces
+    keys = ["username", "password", "nuova_password", "ridigita_nuova_password"]
+    values = [df_users_info.iloc[0]["opersite"], pm_tmp_pwd, df_users_info.iloc[1]["opersite"],
+              df_users_info.iloc[1]["opersite"]]
+    for key, value in zip(keys, values):
+        field = chrdriver.find_element_by_id(key)
+        field.send_keys(value)
+        if key == "password":
+            field.submit()
+
+    chrdriver.find_element_by_id("cambio_password").click()
+    chrdriver.get(struttura)
 
 
 
@@ -192,7 +224,7 @@ def fill_territoriale (chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame
 
     chrdriver.find_element_by_id("Nuovo").click()
     fillig_dict = dict(
-        {"nome": "SeleniumStruttura", "indirizzo": "CardioCalm", "civico": "23", "cap": "25018", "comune": "Montichiari",
+        {"nome": df_users_info.iloc[0]["struttura"], "indirizzo": "CardioCalm", "civico": "23", "cap": "25018", "comune": "Montichiari",
          "provincia": "Brescia", "telefono": "1234567890", "fax": "1234567", "email":df_config_info.iloc[0]["email"],
          "stato": "stato-1", "id_gruppo": df_users_info.iloc[0]["gruppo"], "upload_exam": 1, "data_sospensione": "",
 
@@ -228,8 +260,9 @@ def fill_territoriale (chrdriver: webdriver.Chrome, df_config_info: pd.DataFrame
     select = Select(chrdriver.find_element_by_id("lista_servizi"))
     n_servizi = len(select.options)
     from_element = chrdriver.find_element_by_xpath("//*[@id='lista_servizi']/option[1]")
-    to_element = chrdriver.find_element_by_xpath("//*[@id='lista_servizi']/option['{}']".format(n_servizi))
+    to_element = chrdriver.find_element_by_xpath("//*[@id='lista_servizi']/option[{}]".format(n_servizi))
     action = ActionChains(chrdriver)
     action.click_and_hold(from_element).move_to_element(to_element).perform()
 
-    chrdriver.find_element_by_id("nome_referente_commerciale").click()
+    chrdriver.find_element_by_id("Salva").click()
+

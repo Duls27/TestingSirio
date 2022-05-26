@@ -33,14 +33,14 @@ try:
 except IOError:
     print("Error opening Chrome, check your ChromeWebDriver installation. For package see https://chromedriver.chromium.org/")
 
-driver.get(df_config.iloc[0]['link_piattaforma']) #Open Page to platform
-
 #########################################################################################################################
-
 
 #For every value in culumn "link_struttura",in config_info excell bootstrap sheet, check if exist specific users and structure and execute test described in test_manager.test_gateway
 for struttura in df_config["link_piattaforma"].tolist():
 
-    structure_and_users_manager.check_structure_existence(chrdriver=driver,path_bootstrap_excel=path_bootstrap_excel)
+    driver.get(struttura)  # Open Page to platform
+    structure_and_users_manager.check_structure_existence(chrdriver=driver,path_bootstrap_excel=path_bootstrap_excel, struttura=struttura)
+
+#for struttura in df_config["link_piattaforma"].tolist():
 
     #test_manager.test_gateway(chrdriver=driver, path_bootstrap_excel=path_bootstrap_excel, structure=struttura)
