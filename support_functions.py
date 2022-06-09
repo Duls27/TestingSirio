@@ -1,5 +1,6 @@
 from selenium import webdriver
 import pandas as pd
+from selenium.webdriver.common.by import By
 
 
 #Funzione che effttua l' accesso ad alla piattaforma
@@ -13,11 +14,11 @@ def enter_password_double_check(chrdriver: webdriver.Chrome, df_usr: pd.DataFram
     successful_url= str(chrdriver.current_url) + df_usr.name
 
     #fill first time
-    search_field = chrdriver.find_element_by_id("username")
+    search_field = chrdriver.find_element(By.ID,"username")
     search_field.clear()
     search_field.send_keys(df_usr[0])
 
-    search_field = chrdriver.find_element_by_id("password")
+    search_field = chrdriver.find_element(By.ID,"password")
     search_field.clear()
     search_field.send_keys(df_usr[1])
     search_field.submit()
@@ -26,13 +27,13 @@ def enter_password_double_check(chrdriver: webdriver.Chrome, df_usr: pd.DataFram
 
     # fill second time, if url mismatch
     if current_url != successful_url:
-        search_field = chrdriver.find_element_by_id("username")
+        search_field = chrdriver.find_element(By.ID,"username")
         search_field.clear()
         search_field.send_keys(df_usr[0])
-        search_field = chrdriver.find_element_by_id("password")
+        search_field = chrdriver.find_element(By.ID,"password")
         search_field.clear()
         search_field.send_keys(df_usr[2])
-        chrdriver.find_element_by_id("login").click()
+        chrdriver.find_element(By.ID,"login").click()
         # chrdriver.switch_to_alert().accept()
 
     return chrdriver
@@ -40,6 +41,7 @@ def enter_password_double_check(chrdriver: webdriver.Chrome, df_usr: pd.DataFram
 
 #Filla un campo normale, ricercando l'id dell' elemento e inserend il valore, non ritorna nulla
 def normal_filling (chrdriver: webdriver.Chrome, field, value):
-    target = chrdriver.find_element_by_id(field)
+    target = chrdriver.find_element(By.ID,field)
     target.clear()
     target.send_keys(value)
+

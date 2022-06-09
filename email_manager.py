@@ -91,7 +91,7 @@ def await_receipt_of_email (username, password):
         # total number of emails
         messages = int(messages[0])
         if messages<1:
-            time.sleep(3)
+            time.sleep(10)
 
 
 def delete_all_emails (username, password):
