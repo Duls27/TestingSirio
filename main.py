@@ -48,8 +48,9 @@ for struttura in df_config["link_piattaforma"].tolist():
 
 for struttura, index in zip(df_config["link_piattaforma"].tolist(), range(0,len(df_config["link_piattaforma"].tolist()))):
     driver.get(struttura)  # Open Page to platform
-    test_manager.test_gateway(chrdriver=driver, path_bootstrap_excel=path_bootstrap_excel, platform=index)
+    test_manager.test_gateway(chrdriver=driver, path_bootstrap_excel=path_bootstrap_excel, platform_index=index)
 
 print("Well done, but this not means that all goes like you thinked!")
 
+driver.close()
 exit()

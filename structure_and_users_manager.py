@@ -81,14 +81,19 @@ def check_structure_existence (chrdriver: webdriver.Chrome ,path_bootstrap_excel
             create_cardio(chrdriver=chrdriver, df_users_info=df_users_info, df_config_info=df_config_info, struttura=struttura)
             chrdriver.get(struttura)
     except ex.NoSuchElementException as no_elem_ex:
-        print("Element selected is not present: \n" + no_elem_ex.msg + "\n" + no_elem_ex.args)
+        print("Element selected is not present: \n")
+        print(no_elem_ex.msg)
 
     except ex.TimeoutException as time_ex:
-        print("Something goes wrong, timeout excpetion: \n" + time_ex.msg)
+        print("Something goes wrong, timeout excpetion: \n" )
+        print(time_ex.msg)
 
     except ex.UnexpectedAlertPresentException as alert_ex:
-        print("Alert excpetion: \n" + alert_ex.msg)
+        print("Alert excpetion: \n")
+        print(alert_ex)
         pass
+
+
 
 
 ################################## FUNCTIONS FOR CREATION OF USERS #################################################
