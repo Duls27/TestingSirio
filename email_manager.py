@@ -1,17 +1,16 @@
-import email, os, imaplib, re
-import time
+import email, imaplib, time
 from email.header import decode_header
 
 import pandas as pd
 
 #Return a dictionary that contain a dictionary (from, subject, body) that contain all emails
-def get_google_emails (username, password):
+def get_emails (username, password):
     def clean(text):
         # clean text for creating a folder
         return "".join(c if c.isalnum() else "_" for c in text)
 
     # create an IMAP4 class with SSL
-    imap = imaplib.IMAP4_SSL("imap.gmail.com")
+    imap = imaplib.IMAP4("seth49.seeweb.it")
     # authenticate
     imap.login(username, password)
 
@@ -82,7 +81,7 @@ def get_tmp_pwd_from_emails (mails):
 
 def await_receipt_of_email (username, password):
     # create an IMAP4 class with SSL
-    imap = imaplib.IMAP4_SSL("imap.gmail.com")
+    imap = imaplib.IMAP4("seth49.seeweb.it")
     # authenticate
     imap.login(username, password)
     messages=0
@@ -101,7 +100,7 @@ def delete_all_emails (username, password):
         return "".join(c if c.isalnum() else "_" for c in text)
 
     # create an IMAP4 class with SSL
-    imap = imaplib.IMAP4_SSL("imap.gmail.com")
+    imap = imaplib.IMAP4("seth49.seeweb.it")
     # authenticate
     imap.login(username, password)
 

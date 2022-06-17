@@ -1,13 +1,6 @@
 import pandas as pd
 import os
 
-#This function use Panda library for extract info from excel file
-#INPUT: path to excel file, and aheet name
-#OUTPUT: data frames with data for each excell sheet
-def get_info_from_excel (path_bootstrap, sheet_name):
-    df = pd.read_excel(path_bootstrap,sheet_name=sheet_name)
-    return df
-
 def get_path_files_from_folder_path (folder_path):
     folder_dict = {}
     file_list=os.listdir(path=folder_path)
