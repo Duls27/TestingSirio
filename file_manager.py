@@ -1,7 +1,15 @@
 import pandas as pd
 import os
+"""
+file_manager contain function to work with external file and external folders
+"""
 
-def get_path_files_from_folder_path (folder_path):
+def get_path_files_from_folder_path (folder_path: str):
+    """
+    Thi function return a DataFrame with examns contained in folder_path. If single exam, single value, if folder, all exams in folder
+    :param folder_path: string with path
+    :return: DataFrame
+    """
     folder_dict = {}
     file_list=os.listdir(path=folder_path)
     flag_folder=0

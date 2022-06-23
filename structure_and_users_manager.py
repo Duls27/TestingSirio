@@ -2,10 +2,24 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
 from selenium.webdriver import ActionChains
+import time
 import email_manager, classes
 
-def check_structure_existence (chrdriver: webdriver.Chrome, config_info: classes.configuration_info , users: classes.users, platform):
+"""
+structure and suer manager contain all functions to manage the control and creation of all users for execute th code. 
+The users are readed from the excell file bootstrap.
+"""
 
+def check_structure_existence (chrdriver: webdriver.Chrome, config_info: classes.configuration_info , users: classes.users, platform):
+        """
+        This function chck if users exist or not, in case not exist, create all users
+        :param chrdriver: chrdriver with no logged platform
+        :param config_info: confi_info object
+        :param users: users object
+        :param platform: name of the platform that is running
+        """
+        print("Checking for the existence of the structure...")
+        tic=time.perf_counter()
         #enter in platform as Admin
         chrdriver=users.login_admin(chrdriver=chrdriver)
 
@@ -18,8 +32,10 @@ def check_structure_existence (chrdriver: webdriver.Chrome, config_info: classes
         for group in groups_name:
             if users.gruppo.name in group.text:
                 flag_create_group = 0
+                print("Gruppo already exist")
                 break
         if flag_create_group == 1:
+            print("Gruppo is not present, \t Gruppo in creation...")
             create_gruppo(chrdriver=chrdriver, users=users)
             chrdriver.get(platform)
             chrdriver=users.login_admin()
@@ -34,8 +50,10 @@ def check_structure_existence (chrdriver: webdriver.Chrome, config_info: classes
         for pm in pms_name:
             if users.pm.usr in pm.text:
                 flag_create_pm = 0
+                print("PM already exist")
                 break
         if flag_create_pm == 1:
+            print("PM is not present, \t PM in creation...")
             create_pm(chrdriver=chrdriver,config_info=config_info, users=users, platform=platform)
             chrdriver.get(platform)
             chrdriver=users.login_admin(chrdriver=chrdriver)
@@ -53,9 +71,11 @@ def check_structure_existence (chrdriver: webdriver.Chrome, config_info: classes
         for territoriale in territoriali:
             if str(users.struttura.name) in territoriale.text:
                 flag_create_opersite = 0
+                print("Territoriale already exist")
                 break
 
         if flag_create_opersite == 1:
+            print("Territoriale is not present, \t Territoriale and Oper in creation...")
             create_territoriale(chrdriver=chrdriver, users=users, config_info=config_info, platform=platform)
             chrdriver.get(platform)
             chrdriver=users.login_admin(chrdriver=chrdriver)
@@ -70,18 +90,32 @@ def check_structure_existence (chrdriver: webdriver.Chrome, config_info: classes
         for cardio in cardios_name:
             if users.cardio.usr in cardio.text:
                 flag_create_cardio = 0
+                print("Cardio already exist")
                 break
         if flag_create_cardio == 1:
+            print("Cardio is not present, \t cardio in creation...")
             create_cardio(chrdriver=chrdriver, users=users, config_info=config_info, platform=platform)
             chrdriver.get(platform)
+
+        toc=time.perf_counter()
+        print(f"Checking structure done in {((toc - tic) / 60):0.4f} minutes")
 
 
 ################################## FUNCTIONS FOR CREATION OF USERS #################################################
 ####################################### PM FUNCTIONS ###########################################################
 def create_pm (chrdriver: webdriver.Chrome , config_info: classes.configuration_info, users: classes.users, platform):
 
+    """
+    This function create the project manager
+    :param chrdriver: chrome driver logged as admin, in page f creation of pm
+    :param config_info: confi_info object
+    :param users: users object
+    :param platform: name of the platform that is running
+    """
+
     email_manager.delete_all_emails(username= config_info.email.usr, password= config_info.email.pwd)
     fill_pm( chrdriver,config_info=config_info, users=users)
+    print("Waiting for the receipt of emails")
     email_manager.await_receipt_of_email(username= config_info.email.usr, password= config_info.email.pwd)
     mails = email_manager.get_emails(username= config_info.email.usr, password= config_info.email.pwd)
     pm_tmp_pwd=email_manager.get_tmp_pwd_from_emails(mails)
@@ -97,8 +131,16 @@ def create_pm (chrdriver: webdriver.Chrome , config_info: classes.configuration_
             field.submit()
 
     chrdriver.find_element(By.ID,"cambio_password").click()
+    print("PM correctly created and logged in for the first time!")
 
 def fill_pm (chrdriver: webdriver.Chrome, config_info: classes.configuration_info,users: classes.users):
+
+    """
+    This function fill all the labels of the page of creation for the project manager
+    :param chrdriver: chrdriver in page creation of pm
+    :param config_info: confi_info object
+    :param users: users object
+    """
     chrdriver.find_element(By.XPATH,'//input[@value="Nuovo Project Manager"]').click()
     fillig_dict=dict({"nome": "Selenium" ,"cognome": "pm","datadinascita": "20-11-1998","luogodinascita": "CardioCalm","indirizzo_email": config_info.email.usr  ,"numero_cellulare": "1234567890", "username": users.pm.usr})
 
@@ -119,11 +161,18 @@ def fill_pm (chrdriver: webdriver.Chrome, config_info: classes.configuration_inf
 ########################################## CARDIO FUNCTIONS ##########################################################
 
 def create_cardio(chrdriver: webdriver.Chrome,config_info: classes.configuration_info,users: classes.users, platform):
+    """
+        This function create the cardio refertatore
+        :param chrdriver: chrome driver logged as admin in page of creation of cardio
+        :param config_info: confi_info object
+        :param users: users object
+        :param platform: name of the platform that is running
+        """
 
     email_manager.delete_all_emails(username= config_info.email.usr, password= config_info.email.pwd)
     fill_cardio(chrdriver, config_info=config_info, users=users)
+    print("Waiting for the receipt of emails")
     email_manager.await_receipt_of_email(username= config_info.email.usr, password= config_info.email.pwd)
-
     mails = email_manager.get_emails(username= config_info.email.usr, password= config_info.email.pwd)
     pm_tmp_pwd = email_manager.get_tmp_pwd_from_emails(mails)
 
@@ -138,9 +187,15 @@ def create_cardio(chrdriver: webdriver.Chrome,config_info: classes.configuration
             field.submit()
 
     chrdriver.find_element(By.ID,"cambio_password").click()
+    print("Cardio correctly created and logged in for the first time!")
 
 def fill_cardio (chrdriver: webdriver.Chrome,config_info: classes.configuration_info,users: classes.users):
-
+    """
+        This function fill all the labels of the page of creation for the cardio
+        :param chrdriver: chrdriver in page creation of cardio
+        :param config_info: confi_info object
+        :param users: users object
+        """
     chrdriver.find_element(By.XPATH,'//input[@value="Nuovo Cardiologo"]').click()
     fillig_dict = dict(
         {"nome": "Selenium", "cognome": "cardio", "datadinascita": "20-11-1998", "luogodinascita": "CardioCalm",
@@ -173,18 +228,32 @@ def fill_cardio (chrdriver: webdriver.Chrome,config_info: classes.configuration_
 ########################################### GRUPPO FUNCTIONS ########################################################
 
 def create_gruppo (chrdriver: webdriver.Chrome, users: classes.users):
+    """
+            This function create the gruppo
+            :param chrdriver: chrome driver logged as admin in page of creation of group
+            :param users: users object
+            """
 
     chrdriver.find_element(By.ID,"Nuovo").click()
     name=chrdriver.find_element(By.ID,"nome")
     name.send_keys(users.gruppo.name)
     chrdriver.find_element(By.ID,"Salva").click()
+    print("Grouppo is created!")
 
 ####################################### TERRITORIALE E OPER FUNCTIONS ##############################################
 
 def create_territoriale (chrdriver: webdriver.Chrome, config_info: classes.configuration_info,users: classes.users, platform):
+    """
+           This function create the territoriale and opersite and referente struttura
+           :param chrdriver: chrome driver logged as admin in page of creation struttura
+           :param config_info: config_info object
+           :param users: users object
+           :param platform: name of the platform that is running
+           """
 
     email_manager.delete_all_emails(username= config_info.email.usr, password= config_info.email.pwd)
     fill_territoriale(chrdriver, config_info=config_info, users=users)
+    print("Waiting for the receipt of emails")
     email_manager.await_receipt_of_email(username= config_info.email.usr, password= config_info.email.pwd)
     mails = email_manager.get_emails(username= config_info.email.usr, password= config_info.email.pwd)
     pm_tmp_pwd = email_manager.get_tmp_pwd_from_emails(mails)
@@ -200,9 +269,16 @@ def create_territoriale (chrdriver: webdriver.Chrome, config_info: classes.confi
             field.submit()
 
     chrdriver.find_element(By.ID,"cambio_password").click()
+    print("Territoriale and user correctly created and logged in for the first time!")
     chrdriver.get(platform)
 
 def fill_territoriale (chrdriver: webdriver.Chrome, config_info: classes.configuration_info,users: classes.users):
+    """
+           This function fill all the labels of the page of creation struttura
+           :param chrdriver: chrdriver in page creation of struttura
+           :param config_info: confi_info object
+           :param users: users object
+           """
 
     chrdriver.find_element(By.ID,"Nuovo").click()
     fillig_dict = dict(

@@ -3,13 +3,25 @@ from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-import selenium.common.exceptions as EX
 import file_manager, classes
-
+from selenium.common.exceptions import *
+"""
+test_carica_esame conatins all the functions to  work with test of carica esame
+"""
 global n_row_CE
 
 def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configuration_info, users: classes.users, folder_exam):
+    """
+    This function in case of multiple sending of exams, handle one exams sending at time
+    :param chrdriver: chrome driver not logged
+    :param config_info: cpnfig_info classes
+    :param users: users_classes
+    :param folder_exam: path to folder of specific exam "carica esame"
+    :return: DataFrame with results
+    """
+    print("Initializing test CARICA ESAME")
     #access as oper
+    chrdriver_init_url= chrdriver.current_url
     chrdriver = users.login_opersite(chrdriver=chrdriver)
 
     #retrieve info for test CARICA_ESAME, EXAMS_FILE_PATH, CONFIG from excell
@@ -18,9 +30,13 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
     df_exams_path=file_manager.get_path_files_from_folder_path(folder_path=config_info.path_exams)
     df_diary_path = file_manager.get_path_files_from_folder_path(folder_path=config_info.path_diaries)
     #set Df for final_result
+
     index_final=[]
     data_final=[]
+    #declaration for modify glob_var
+    global n_row_CE
     for n_row_CE in df_carica_esame.index:
+        print(f"Sending exams n. {n_row_CE}...")
         element = WebDriverWait(chrdriver, 10).until(EC.element_to_be_clickable((By.LINK_TEXT, "Carica")))
         element.click();
         #Check if carica esame is CaricaPDF
@@ -44,17 +60,29 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
         if data_final[-1] == 1:
             df_err_final.to_csv(path_or_buf=str(folder_exam + "/" +str(n_row_CE) + "_exp_eff_table.csv"), sep=";")
 
-    final_df = pd.DataFrame(data=data_final, index=index_final, columns=["CaricaEsame"])
 
+    final_df = pd.DataFrame(data=data_final, index=index_final, columns=["CaricaEsame"])
+    chrdriver.get(chrdriver_init_url)
     return final_df
 
 
 
-        #write in csv insternalò for this test
-        #write in results exp-eff
-
 def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exams_path: pd.DataFrame,df_diary_path: pd.DataFrame, config_info: classes.configuration_info, err_setted: classes.ce_errors, folder_exam):
+    """
+        Send one exam, filling all teh vlaues and svaing effective errors
+        :param chrdriver: chromedriver logged as opersite
+        :param one_row_ce: only one row dataframe with specific info for this exam
+        :param df_exams_path: path to exams
+        :param df_diary_path: path to diaries
+        :param config_info: config_info classes
+        :param err_setted: errors_ce class
+        :param folder_exam: path to folder of platoform specific for "caric esame"
+        :return: err_setted: errors_ce class
+    """
+    try:
         #################################### SENDING PARAM ############################################
+        tic=time.perf_counter()
+
         for key in one_row_ce.index:
             if one_row_ce.isnull().loc[key] and key != "datetime_files":
                 continue
@@ -99,7 +127,7 @@ def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exam
         except:
             pass
         #if ther eis alert error, work on it
-        if "alert_msg" in locals():
+        if "alert_msg" in locals() and alert_msg != "Esame inviato correttamente":
             #Control if is in known errors
             if alert_msg in err_setted.get_all_text():
                 #Check if is expected
@@ -111,11 +139,14 @@ def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exam
                                 os.mkdir(folder_exam)
                             err.eff=1
                             chrdriver.save_screenshot(filename=str(folder_exam + "/" +n_row_CE +"_not_expected.png"))
-                            break
+                            toc = time.perf_counter()
+                            print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t ERROR NOT EXPECTED, for review open result file! \t Folder {folder_exam} \n\n")
+
                         #expected, no screenshot
                         elif err.exp==1:
                             err.eff = 1
-                            break
+                            print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t ERROR WAS EXPECTED, for review open result file! \t Folder {folder_exam} \n\n")
+
 
             #Is a new errror
             else:
@@ -123,6 +154,7 @@ def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exam
                     os.mkdir(folder_exam)
                 err_setted.new_error.text.append(alert_msg)
                 #Make a screenshot to view it
+                print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t NEW ERROR FINDED, for review open result file! \t Folder {folder_exam} \t After modify the code to handle it! \n\n")
                 chrdriver.save_screenshot(filename=str(folder_exam+ "/" +n_row_CE +"_new_error_detected.png"))
                 pass
         #Otherwise check that the file is send
@@ -135,10 +167,33 @@ def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exam
                     break
                 else:
                     time.sleep(0.1)
+            toc=time.perf_counter()
+            print(f"Exam {n_row_CE}, SENDED... in {((toc - tic) / 60):0.4f} minutes \n")
 
         return err_setted
 
+    except NoSuchElementException as exc:
+        print(f"Error searching element sending exam n. {n_row_CE}\n "
+              f"Before look at the code, try to use bootsrap_backup\n"
+              f"At the moment error is skipped, in case evaluate with:\n\n")
+        print(exc.msg)
+        pass
+    except ElementClickInterceptedException as exc:
+        print(f"Error clicking element sending exam n. {n_row_CE}\n "
+              f"Before look at the code, try to use bootsrap_backup\n"
+              f"At the moment error is skipped, in evaluate with:\n\n")
+        print(exc.msg)
+        pass
+
 def set_expected_error (df_carica_esame: pd.DataFrame, err: classes.ce_errors):
+
+        """
+        Read errors form specific class and manage the search of possible errors that could occur.
+
+        :param df_carica_esame: one row of carica_esame dataFrame, so only one sendig exam
+        :param err: errors_ce class
+        :return: err: errors_ce class with setted flag for exp errors
+        """
 
         # check mancanza_di_informazioni, list to control is write here
         for lbl in ["sel_tipiesame", "inp_nome_paziente", "inp_cognome_paziente", "inp_cf_paziente",

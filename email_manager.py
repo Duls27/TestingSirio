@@ -1,10 +1,20 @@
 import email, imaplib, time
 from email.header import decode_header
 
-import pandas as pd
+"""
+email-manager.py contain all the function that manage the email. 
+Setted mail is an amps-llc domain.
+"""
 
 #Return a dictionary that contain a dictionary (from, subject, body) that contain all emails
-def get_emails (username, password):
+def get_emails (username: str, password: str):
+
+    """
+    get_emails read all email from the mial domain and return a dictionary with information.
+    :param username: string with username
+    :param password: string with password
+    :return: Dictionary with 3 list: from, subject, body
+    """
     def clean(text):
         # clean text for creating a folder
         return "".join(c if c.isalnum() else "_" for c in text)
@@ -63,7 +73,14 @@ def get_emails (username, password):
     return mails
 
 
-def get_tmp_pwd_from_emails (mails):
+def get_tmp_pwd_from_emails (mails: dict):
+
+    """
+    This function read email and search the temporary password send from cardiocalm.
+     In case the text mail change, subject_target must be changed
+    :param mails: dictionary wit 3 list: from, subject, body
+    :return: string wit temp password
+    """
 
     subject_target="credenziali telecardiologia 2/2: password"
 
@@ -80,6 +97,12 @@ def get_tmp_pwd_from_emails (mails):
 
 
 def await_receipt_of_email (username, password):
+
+    """
+    This functio wait until a mail is receved.
+    :param username: str
+    :param password: str
+    """
     # create an IMAP4 class with SSL
     imap = imaplib.IMAP4("seth49.seeweb.it")
     # authenticate
@@ -93,7 +116,13 @@ def await_receipt_of_email (username, password):
             time.sleep(10)
 
 
-def delete_all_emails (username, password):
+def delete_all_emails (username: str, password: str):
+    """
+    This function simply delete all email in mail domain
+    :param username: str
+    :param password: str
+    :return:
+    """
 
     def clean(text):
         # clean text for creating a folder

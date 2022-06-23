@@ -1,13 +1,21 @@
 import numpy as np, pandas as pd, os
-from tests import test_carica_esame
+from tests import test_carica_esame, test_referta_esame
 from selenium import webdriver
 import classes
 
-#Test_gateway function is used for branching the code, takes from the bootstrap file all the information regarding
-# the tests you want to run and following the columns in the excell file runs all the required tests, calling for
-# each test the necessary functions.
-#in case of more platfroms you can use each row for specify if do or not specific test for a specific platform
+"""
+test_manager handle all the test to do and write th final results
+"""
+
 def test_gateway (chrdriver: webdriver.Chrome, config_info: classes.configuration_info, lista_test_platofrom: pd.DataFrame, users: classes.users, folder_platform):
+    """
+    Like a gatway this function split all the test to the specific file test manager
+    :param chrdriver: chrdrive of platform not logged
+    :param config_info: config_info class
+    :param lista_test_platofrom: DataFrame with test to do readed from bootstrap file
+    :param users: users class
+    :param folder_platform: folder path of the specific platform, to save results
+    """
     for exam in lista_test_platofrom.keys():
         # Create folder for result of specific exam in platform
         folder_exam = str(folder_platform + "/" + exam)
@@ -15,9 +23,12 @@ def test_gateway (chrdriver: webdriver.Chrome, config_info: classes.configuratio
         if not np.isnan(do_or_not):
             if exam == "carica_esame":
                 final_df_ce=test_carica_esame.send_more_exams(chrdriver=chrdriver, config_info=config_info, users= users, folder_exam=folder_exam)
+
+            elif exam == "referta_esame":
+                test_referta_esame.report_more_exams(chrdriver=chrdriver, users=users)
             else:
                 print("Exam not in list")
 
-    print(final_df_ce)
+
     #with pd.ExcelWriter(config_info.path_output, mode='a') as writer:
         #final_df.to_excel(writer, sheet_name='Sheet_name_3')
