@@ -334,10 +334,19 @@ class ce_errors:
         df_err= self.ce_errors_to_df()
         df_err["diff"]=df_err["exp"] - df_err["eff"]
         flag=0
-        for val in df_err["eff"].values:
+        for val in df_err["diff"].values:
             if val == -1 or val == -2:
                 flag=1
         return flag
+
+    def get_flag_sended_or_not(self):
+        df_err = self.ce_errors_to_df()
+        flag = 1
+        for val in df_err["eff"].values:
+            if val != 0 :
+                flag = 0
+        return flag
+
 
 class single_ce_error:
 

@@ -22,10 +22,11 @@ def test_gateway (chrdriver: webdriver.Chrome, config_info: classes.configuratio
         do_or_not=lista_test_platofrom.loc[exam]
         if not np.isnan(do_or_not):
             if exam == "carica_esame":
-                final_df_ce=test_carica_esame.send_more_exams(chrdriver=chrdriver, config_info=config_info, users= users, folder_exam=folder_exam)
-
+                print("\nInitializing test CARICA ESAME")
+                #final_df_ce, sended_exam=test_carica_esame.send_more_exams(chrdriver=chrdriver, config_info=config_info, users= users, folder_exam=folder_exam)
             elif exam == "referta_esame":
-                test_referta_esame.report_more_exams(chrdriver=chrdriver, users=users)
+                print("\nInitializing test REFERTA ESAME")
+                test_referta_esame.report_more_exams(chrdriver=chrdriver, users=users, config_info=config_info, sended_exam=[0,0,1,1,1])
             else:
                 print("Exam not in list")
 

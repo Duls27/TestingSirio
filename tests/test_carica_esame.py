@@ -19,7 +19,6 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
     :param folder_exam: path to folder of specific exam "carica esame"
     :return: DataFrame with results
     """
-    print("Initializing test CARICA ESAME")
     #access as oper
     chrdriver_init_url= chrdriver.current_url
     chrdriver = users.login_opersite(chrdriver=chrdriver)
@@ -33,6 +32,7 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
 
     index_final=[]
     data_final=[]
+    sended_exam=[]
     #declaration for modify glob_var
     global n_row_CE
     for n_row_CE in df_carica_esame.index:
@@ -54,18 +54,17 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
 
         index_final.append(str("CE" + str(n_row_CE)))
         data_final.append(err_final.get_flag_result())
+        sended_exam.append(err_final.get_flag_sended_or_not())
 
         df_err_final = err_final.ce_errors_to_df()
-        #In case of presence of errors save an additional csv with exp and eff errors
+        #In case of presence of unexpected errors save an additional csv with exp and eff errors
         if data_final[-1] == 1:
             df_err_final.to_csv(path_or_buf=str(folder_exam + "/" +str(n_row_CE) + "_exp_eff_table.csv"), sep=";")
 
 
     final_df = pd.DataFrame(data=data_final, index=index_final, columns=["CaricaEsame"])
     chrdriver.get(chrdriver_init_url)
-    return final_df
-
-
+    return final_df, sended_exam
 
 def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exams_path: pd.DataFrame,df_diary_path: pd.DataFrame, config_info: classes.configuration_info, err_setted: classes.ce_errors, folder_exam):
     """
@@ -145,7 +144,7 @@ def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exam
                         #expected, no screenshot
                         elif err.exp==1:
                             err.eff = 1
-                            print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t ERROR WAS EXPECTED, for review open result file! \t Folder {folder_exam} \n\n")
+                            print(f"Exam {n_row_CE}, NOT SENDED... \t ERROR WAS EXPECTED! \n\n")
 
 
             #Is a new errror

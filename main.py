@@ -40,23 +40,24 @@ df_users = pd.read_excel(config_info.path_input, sheet_name='users_info', index_
 users=classes.users(df_users=df_users)
 
 
-'''
-#For every value in culumn "link_struttura",in config_info excell bootstrap sheet, check if exist specific users and structure and execute test described in test_manager.test_gateway
 for platform in platforms:
-
-    driver.get(platform)  # Open Page to platform
-    structure_and_users_manager.check_structure_existence(chrdriver=driver,config_info= config_info, users=users,platform=platform)
-'''
-
-for platform in platforms:
-    #Create folder for result of specific platform
-    name_platform=platform.split(sep="/")[3]
-    folder_plat = str(config_info.path_folder_desk+"/"+name_platform)
+    # Create folder for result of specific platform
+    name_platform = platform.split(sep="/")[3]
+    folder_plat = str(config_info.path_folder_desk + "/" + name_platform)
     if not os.path.isdir(folder_plat):
         os.mkdir(folder_plat)
-    # Open Page to platform
+
+    print(f"\n*******************************************************************************"
+          f"\n Controlling if users exist for: {name_platform}\n")
+
+    #driver.get(platform)  # Open Page to platform
+    #structure_and_users_manager.check_structure_existence(chrdriver=driver,config_info= config_info, users=users,platform=platform)
+
+    print(f"\n*******************************************************************************"
+          f"\n Starting with test of {name_platform}\n")
+
     driver.get(platform)
-    #chunk only one platform
+    #chunk lista test only of one platform
     lista_test_platofrom= lista_test.loc[platform]
     test_manager.test_gateway(chrdriver=driver, config_info=config_info, lista_test_platofrom=lista_test_platofrom, users= users, folder_platform=folder_plat)
 
