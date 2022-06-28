@@ -83,7 +83,7 @@ def get_tmp_pwd_from_emails (mails: dict):
     """
 
     subject_target="credenziali telecardiologia 2/2: password"
-
+    password_tmp=None
     for i in range(len(mails["subject"])):
         if subject_target == mails["subject"][i]:
             mail_body = str(mails["body"][i]).replace("\n","")

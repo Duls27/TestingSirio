@@ -1,4 +1,4 @@
-import  structure_and_users_manager, classes, test_manager
+import  structure_and_users_manager, classes, test_manager, sys
 import os, pandas as pd
 from selenium import webdriver
 
@@ -19,6 +19,8 @@ settable_values = {"email_usr": "testing@amps-llc.com",
 
 #assign variables for configuration to specific class
 config_info=classes.configuration_info(sv=settable_values)
+
+sys.stdout = classes.Wrapper(sys.stdout, open(os.path.normpath(config_info.path_folder_desk+"/log.txt"), 'w'))
 
 ############################################  OPENING CHROME DRIVER  ##################################################
 
@@ -61,7 +63,7 @@ for platform in platforms:
     lista_test_platofrom= lista_test.loc[platform]
     test_manager.test_gateway(chrdriver=driver, config_info=config_info, lista_test_platofrom=lista_test_platofrom, users= users, folder_platform=folder_plat)
 
-print("Well done, but this not means that all goes like you thinked!")
+print("\nWell done, but this not means that all goes like you thinked!")
 
 driver.close()
 exit()

@@ -28,3 +28,9 @@ def get_path_files_from_folder_path (folder_path: str):
         df = pd.DataFrame(data=folder_dict, index=[0])
 
     return df
+
+def get_specific_file_from_folder (extension, folder):
+    extension= str("."+ extension)
+    for file in os.listdir(folder):
+        if file.endswith(extension):
+            return os.path.join(folder, file)

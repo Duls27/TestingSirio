@@ -26,7 +26,7 @@ def test_gateway (chrdriver: webdriver.Chrome, config_info: classes.configuratio
                 #final_df_ce, sended_exam=test_carica_esame.send_more_exams(chrdriver=chrdriver, config_info=config_info, users= users, folder_exam=folder_exam)
             elif exam == "referta_esame":
                 print("\nInitializing test REFERTA ESAME")
-                test_referta_esame.report_more_exams(chrdriver=chrdriver, users=users, config_info=config_info, sended_exam=[0,0,1,1,1])
+                test_referta_esame.report_more_exams(chrdriver=chrdriver, users=users, config_info=config_info, sended_exam=[1,0,0,0,1,1,1])#sended_exam da sostituire #[1,0,0,0,1,1,1]
             else:
                 print("Exam not in list")
 

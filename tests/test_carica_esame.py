@@ -4,17 +4,19 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
 import file_manager, classes
+from tests.test_classes import classes_ce
 from selenium.common.exceptions import *
+
 """
 test_carica_esame conatins all the functions to  work with test of carica esame
 """
 global n_row_CE
 
-def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configuration_info, users: classes.users, folder_exam):
+def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configuration_info, users: classes.users, folder_exam: str):
     """
     This function in case of multiple sending of exams, handle one exams sending at time
     :param chrdriver: chrome driver not logged
-    :param config_info: cpnfig_info classes
+    :param config_info: cpnfig_info test_classes
     :param users: users_classes
     :param folder_exam: path to folder of specific exam "carica esame"
     :return: DataFrame with results
@@ -46,11 +48,12 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
             chrdriver.find_element_by_link_text("Esame").click()
 
         #get expected errors and class to manipulate it
-        err=classes.ce_errors()
+        err= classes_ce.errors()
+        err=set_expected_esameDoppio(df=df_carica_esame, err=err)
         one_row_ce=df_carica_esame.iloc[n_row_CE]
         err_setted=set_expected_error(df_carica_esame= one_row_ce, err=err)
         #do Carica esame for one row
-        err_final=carica_esame(chrdriver=chrdriver, one_row_ce= one_row_ce, df_exams_path=df_exams_path, df_diary_path=df_diary_path, config_info=config_info, err_setted=err_setted, folder_exam=folder_exam)
+        err_final=carica_esame(chrdriver=chrdriver, one_row_ce= one_row_ce, df_exams_path=df_exams_path, df_diary_path=df_diary_path, err_setted=err_setted, folder_exam=folder_exam)
 
         index_final.append(str("CE" + str(n_row_CE)))
         data_final.append(err_final.get_flag_result())
@@ -66,14 +69,14 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
     chrdriver.get(chrdriver_init_url)
     return final_df, sended_exam
 
-def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exams_path: pd.DataFrame,df_diary_path: pd.DataFrame, config_info: classes.configuration_info, err_setted: classes.ce_errors, folder_exam):
+def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exams_path: pd.DataFrame, df_diary_path: pd.DataFrame, err_setted: classes_ce.errors, folder_exam: str):
     """
         Send one exam, filling all teh vlaues and svaing effective errors
         :param chrdriver: chromedriver logged as opersite
         :param one_row_ce: only one row dataframe with specific info for this exam
         :param df_exams_path: path to exams
         :param df_diary_path: path to diaries
-        :param config_info: config_info classes
+        :param config_info: config_info test_classes
         :param err_setted: errors_ce class
         :param folder_exam: path to folder of platoform specific for "caric esame"
         :return: err_setted: errors_ce class
@@ -116,58 +119,42 @@ def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exam
                     annulla.click()
         chrdriver.find_element_by_id("Invia").click()
 
-        ################################# CHECK IF THERE ARE ERRORS #########################################
+        flag_ERROR_before_sending = False
+        #Check for errors before sendind exam
         try:
             #There is error banner?
             if chrdriver.find_element(By.XPATH,'//*[@id="id_div_informativo"]/div'):
                 # Get text error
                 alert_msg = chrdriver.find_element(By.XPATH, '//*[@id="id_div_informativo"]/div').text
+                flag_ERROR_before_sending=True
+                handle_alert_msg(chrdriver=chrdriver, alert_msg=alert_msg, folder_exam=folder_exam, err_setted=err_setted)
+
         # No errors
         except:
-            pass
-        #if ther eis alert error, work on it
-        if "alert_msg" in locals() and alert_msg != "Esame inviato correttamente":
-            #Control if is in known errors
-            if alert_msg in err_setted.get_all_text():
-                #Check if is expected
-                for err in err_setted.__iter__():
-                    if err.text == alert_msg:
-                        #expected make screenshot
-                        if err.exp == 0:
-                            if not os.path.isdir(folder_exam):
-                                os.mkdir(folder_exam)
-                            err.eff=1
-                            chrdriver.save_screenshot(filename=str(folder_exam + "/" +n_row_CE +"_not_expected.png"))
-                            toc = time.perf_counter()
-                            print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t ERROR NOT EXPECTED, for review open result file! \t Folder {folder_exam} \n\n")
-
-                        #expected, no screenshot
-                        elif err.exp==1:
-                            err.eff = 1
-                            print(f"Exam {n_row_CE}, NOT SENDED... \t ERROR WAS EXPECTED! \n\n")
-
-
-            #Is a new errror
-            else:
-                if not os.path.isdir(folder_exam):
-                    os.mkdir(folder_exam)
-                err_setted.new_error.text.append(alert_msg)
-                #Make a screenshot to view it
-                print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t NEW ERROR FINDED, for review open result file! \t Folder {folder_exam} \t After modify the code to handle it! \n\n")
-                chrdriver.save_screenshot(filename=str(folder_exam+ "/" +n_row_CE +"_new_error_detected.png"))
-                pass
-        #Otherwise check that the file is send
-        else:
-            #check progress bar title for attending that platform send exam
+            # Otherwise check that the file is send
+            # check progress bar title for attending that platform send exam
             while True:
-                progressCondition = chrdriver.find_element(By.ID,"id-modal-title").text
+                progressCondition = chrdriver.find_element(By.ID, "id-modal-title").text
                 if progressCondition == 'Invio dati esame in corso - 100%':
-                    time.sleep(5)
+                    time.sleep(3)
                     break
                 else:
                     time.sleep(0.1)
-            toc=time.perf_counter()
-            print(f"Exam {n_row_CE}, SENDED... in {((toc - tic) / 60):0.4f} minutes \n")
+
+        #check for errors after sending
+        try:
+            # There is error banner?
+            if chrdriver.find_element(By.XPATH, '//*[@id="id_div_informativo"]/div') and flag_ERROR_before_sending == False:
+                # Get text error
+                alert_msg = chrdriver.find_element(By.XPATH, '//*[@id="id_div_informativo"]/div').text
+                if alert_msg != "Esame inviato correttamente":
+                    handle_alert_msg(chrdriver=chrdriver, alert_msg=alert_msg, folder_exam=folder_exam,err_setted=err_setted)
+
+                else:
+                    toc = time.perf_counter()
+                    print(f"Exam {n_row_CE}, SENDED... in {((toc - tic) / 60):0.4f} minutes \n")
+        except:
+            pass
 
         return err_setted
 
@@ -184,7 +171,43 @@ def carica_esame (chrdriver: webdriver.Chrome, one_row_ce: pd.DataFrame, df_exam
         print(exc.msg)
         pass
 
-def set_expected_error (df_carica_esame: pd.DataFrame, err: classes.ce_errors):
+def handle_alert_msg (chrdriver: webdriver.Chrome, alert_msg: str, folder_exam: str, err_setted: classes_ce.errors):
+    """
+    Handle errors, controlling if are expected, not expected or new errors. In case of strange errors: s
+    save screenshots and save error
+    :param chrdriver: current driver in sending exam
+    :param alert_msg: str with error detected
+    :param folder_exam: folder for saving errors
+    :param err_setted: err DataFrame that contains expected and effective errors
+    :return:
+    """
+
+    # Control if is in known errors
+    if alert_msg in err_setted.get_all_text():
+        # Check if is expected
+        for err in err_setted.__iter__():
+            if err.text == alert_msg:
+                # expected make screenshot
+                if err.exp == 0:
+                    if not os.path.isdir(folder_exam):
+                        os.mkdir(folder_exam)
+                    err.eff = 1
+                    chrdriver.save_screenshot(filename=os.path.normpath(str(folder_exam) + "/" + str(n_row_CE) + "_new_error_detected.png"))
+                    print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t ERROR NOT EXPECTED, for review open result file! \t Folder {os.path.normpath(folder_exam)} \n\n")
+
+                # expected, no screenshot
+                elif err.exp == 1:
+                    err.eff = 1
+                    print(f"Exam {n_row_CE}, NOT SENDED... \t ERROR WAS EXPECTED! \n\n")
+    # Is a new errror
+    else:
+        if not os.path.isdir(folder_exam):
+            os.mkdir(folder_exam)
+        print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t NEW ERROR FINDED, for review open result file! \t Folder {os.path.normpath(folder_exam)} \t After modify the code to handle it! \n\n")
+        chrdriver.save_screenshot(filename=os.path.normpath(str(folder_exam) + "/" + str(n_row_CE) + "_new_error_detected.png"))
+        pass
+
+def set_expected_error (df_carica_esame: pd.DataFrame, err: classes_ce.errors):
 
         """
         Read errors form specific class and manage the search of possible errors that could occur.
@@ -229,13 +252,34 @@ def set_expected_error (df_carica_esame: pd.DataFrame, err: classes.ce_errors):
 
             #check peso
             if label=="inp_peso_paziente":
-                if re.search('[a-zA-Z]', str(value)):
-                    err.pesoNV.exp=1
+                if pd.notnull(value):
+                    if re.search('[a-zA-Z]', str(value)):
+                        err.pesoNV.exp=1
 
             #check altezza
             if label=="inp_altezza_paziente":
-                if re.search('[a-zA-Z]', str(value)):
-                    err.altezzaNV.exp=1
+                if pd.notnull(value):
+                    if re.search('[a-zA-Z]', str(value)):
+                        err.altezzaNV.exp=1
 
         return err
+
+def set_expected_esameDoppio (df: pd.DataFrame, err: classes_ce.errors):
+    """
+    Esame Doppio cannot be entered in set_expected_error cause for research needed all df_carica esame not only one row.
+    So this check for error expected is handled here.
+    :param df_carica_esame: one row of carica_esame dataFrame, so only one sendig exam
+    :param err: errors_ce class
+    :return: err: errors_ce class with setted flag for exp errors
+    """
+    # Control if is first match, one of two/more equals exam is sended
+    # if exam that i'm sending has an idx major it means that one is already sended
+    for row in range(n_row_CE):
+            if df.iloc[row]["inp_cf_paziente"]==df.iloc[n_row_CE]["inp_cf_paziente"]:
+                if df.iloc[row]["file_exam"]==df.iloc[n_row_CE]["file_exam"]:
+                    if (df.iloc[row]["datetime_files"]==df.iloc[n_row_CE]["datetime_files"]) or (df.iloc[row]["inp_data_esame"]==df.iloc[n_row_CE]["inp_data_esame"] and df.iloc[row]["inp_time_esame"]==df.iloc[n_row_CE]["inp_time_esame"]):
+                        err.esameDoppio.exp=1
+    return err
+
+
 
