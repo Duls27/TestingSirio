@@ -75,31 +75,32 @@ class errors:
                     data["eff"].append(2)
         return pd.DataFrame(data=data, index=index)
 
-    def get_flag_result(self):
+    def get_flagRes_flagSend(self):
         """
-        This function evaluate if there are new_errors detected of if there are unexpected errors.
-        Simply made exp errors - effective errors and evaluate the result
+        This function return two flags:
+        flagRes: 0 if there are no errors to report to the user, 1 if there are errors, thi is eveluated doing err_expected - err_effective.
+                - 2 is not error, cause is expected but exam is sended
+        flagSend: 1 if the exam is sended, 0 if exam is NOT sended, -1 if exam is BLOCKED. Evaluate only effective errors,
+                in case of BLOCKED search if exp-eff is equal to -2, cause error related to duplicates is the only one that have exp err = -1, so re is -2.
+        :return: two bynaries flags
+        """
 
-        :return: flag == 1 if there are new/unexpected errors, 0 otherwise
-        """
         df_err= self.ce_errors_to_df()
         df_err["diff"]=df_err["exp"] - df_err["eff"]
-        flag=0
-        for val in df_err["diff"].values:
-            if val == -1 or val == -2:
-                flag=1
-        return flag
-
-    def get_flag_sended_or_not(self):
-        df_err = self.ce_errors_to_df()
-        flag = 1
+        flaRes=0
+        flaSend=1
+        #check if exam is sended or not
         for val in df_err["eff"].values:
-            if val != 0 :
-                flag = 0
-        return flag
+            if val == 1:
+                flaSend = 0
+        #evaluate if in report file insert that there is a problem
+        for val in df_err["diff"].values:
+            if val == -1:
+                flaRes=1
+            if val == -2: #Exam is sended, but blocked set flag to -1
+                flaSend=-1
 
-
-
+        return flaRes, flaSend
 
 class single_error:
 

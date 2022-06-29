@@ -1,4 +1,6 @@
 import time, pandas as pd, datetime, re, os
+
+import numpy as np
 from selenium import webdriver
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -56,8 +58,9 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
         err_final=carica_esame(chrdriver=chrdriver, one_row_ce= one_row_ce, df_exams_path=df_exams_path, df_diary_path=df_diary_path, err_setted=err_setted, folder_exam=folder_exam)
 
         index_final.append(str("CE" + str(n_row_CE)))
-        data_final.append(err_final.get_flag_result())
-        sended_exam.append(err_final.get_flag_sended_or_not())
+        flag_res, flag_sended=err_final.get_flagRes_flagSend()
+        data_final.append(flag_res)
+        sended_exam.append(flag_sended)
 
         df_err_final = err_final.ce_errors_to_df()
         #In case of presence of unexpected errors save an additional csv with exp and eff errors
@@ -187,18 +190,23 @@ def handle_alert_msg (chrdriver: webdriver.Chrome, alert_msg: str, folder_exam: 
         # Check if is expected
         for err in err_setted.__iter__():
             if err.text == alert_msg:
-                # expected make screenshot
+                #not expected make screenshot
                 if err.exp == 0:
                     if not os.path.isdir(folder_exam):
                         os.mkdir(folder_exam)
                     err.eff = 1
                     chrdriver.save_screenshot(filename=os.path.normpath(str(folder_exam) + "/" + str(n_row_CE) + "_new_error_detected.png"))
                     print(f"\n\n Exam {n_row_CE}, NOT SENDED... \t ERROR NOT EXPECTED, for review open result file! \t Folder {os.path.normpath(folder_exam)} \n\n")
-
+                    break
+                elif err.exp == -1:
+                    err.eff = 1
+                    print(f"\n\n Exam {n_row_CE}, BLOCKED... \t EQUAL EXAM IS ALREADY SENDED, for review open result file! \t Folder {os.path.normpath(folder_exam)} \n\n")
+                    break
                 # expected, no screenshot
                 elif err.exp == 1:
                     err.eff = 1
                     print(f"Exam {n_row_CE}, NOT SENDED... \t ERROR WAS EXPECTED! \n\n")
+                    break
     # Is a new errror
     else:
         if not os.path.isdir(folder_exam):
@@ -278,7 +286,7 @@ def set_expected_esameDoppio (df: pd.DataFrame, err: classes_ce.errors):
             if df.iloc[row]["inp_cf_paziente"]==df.iloc[n_row_CE]["inp_cf_paziente"]:
                 if df.iloc[row]["file_exam"]==df.iloc[n_row_CE]["file_exam"]:
                     if (df.iloc[row]["datetime_files"]==df.iloc[n_row_CE]["datetime_files"]) or (df.iloc[row]["inp_data_esame"]==df.iloc[n_row_CE]["inp_data_esame"] and df.iloc[row]["inp_time_esame"]==df.iloc[n_row_CE]["inp_time_esame"]):
-                        err.esameDoppio.exp=1
+                        err.esameDoppio.exp=-1
     return err
 
 
