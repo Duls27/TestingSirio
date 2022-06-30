@@ -1,3 +1,5 @@
+import time
+
 import numpy as np
 import pandas as pd, os
 from selenium import webdriver
@@ -13,60 +15,75 @@ from tests.test_classes import classes_rf
 
 def report_more_exams (chrdriver: webdriver.Chrome, users: classes.users, config_info: classes.configuration_info, sended_exam: list):
 
-    df_referta_esame = pd.read_excel(config_info.path_input, sheet_name="referta_esame", index_col="codice_fiscale")
-    df_carica_esame = pd.read_excel(config_info.path_input, sheet_name="carica_esame", index_col="inp_cf_paziente")
-    df_referta_esame["sended"]=sended_exam
-    get_all_exams_POV_admin(chrdriver=chrdriver, users=users, dir_exams=config_info.path_exams)
+    df_referta_esame = pd.read_excel(config_info.path_input, sheet_name="referta_esame")
+    url_platform=chrdriver.current_url
+    #Check that exams are arrived, viewing from ADMIN
+    df_referta_esame["stato"]=label_encoder(encode_param={'Refertabile': 1, "0": 0, 'Bloccato': -1},to_encode=sended_exam)
+    df_exams_status = get_all_table_exams_POV_admin(chrdriver=chrdriver, users=users, dir_exams=config_info.path_exams)
+    n_sende_exam=np.count_nonzero(a=sended_exam) #0 aren't sended
+    # drop elemnt that are not sended (in sended_list=0), control if other exams are arrived
+    df_arrived_exams=pd.merge(df_referta_esame, df_exams_status, on=["stato", "codice_fiscale"], how="inner")
+    if n_sende_exam != df_arrived_exams.shape[0]:
+        print("ERROR...  Number of sended exam is different from Admin POV")
+        return 1
+    """
+    POP elemnt that are BLOCKED, in case of a specific test, remove POP
+    """
+    ids=df_arrived_exams[df_arrived_exams['stato']=="Bloccato"].index.values.tolist()
+    df_arrived_exams.drop(ids, inplace=True)
+    """
+    Insert data of carica esame and associate to df_arrived exams
+    """
+    df_ce = pd.read_excel(config_info.path_input, sheet_name="carica_esame").drop_duplicates(subset="inp_cf_paziente")
+    df_ex_to_report=pd.merge(df_arrived_exams, df_ce, left_on="codice_fiscale", right_on="inp_cf_paziente", how='inner').set_index('nome_cognome')
 
-
-
-"""
+    chrdriver.get(url_platform)
+    #Enter as Cardio for report exams
     users.login_cardio(chrdriver=chrdriver)
     #view all exam in table
     tutti = chrdriver.find_element(By.XPATH, "// *[ @ id = 'sel_sla'] / option[1]")
     actionChains = ActionChains(chrdriver)
     actionChains.double_click(tutti).perform()
-
+    url_table=chrdriver.current_url
     #return all element in table
     elements_in_table=chrdriver.find_elements(By.XPATH,"//*[@id='idTbodyEcgdarefertare']/*")
-    #Insert in a list all 5th elements with tag td, extract names and surnames for each elemnt
-
-    exams_to_report=classes_rf.exams_rf()
-
-    #control if all sended exams are viewed by the cardio
-    for exam in elements_in_table.__iter__():
-        name=exam.find_elements(By.TAG_NAME, "td")[5].text
-        if name in df_referta_esame["nome_cognome"].tolist():
-            idx=df_referta_esame["nome_cognome"].tolist().index(name)
-            if df_referta_esame.loc[idx]["sended"]==1:
-                #extract id of exam and name of patient ad save into dict
-                print(name)
-                exams_to_report.ids.append(exam.get_attribute("id"))
-                exams_to_report.names_surnames.append(name)
-                exams_to_report.types.append(exam.find_elements(By.TAG_NAME, "td")[2].text)
-
-            #control if all exams are arrived or not
-
-    url = chrdriver.current_url
-    #iterate for each exam and pass exams to specific function, discirminant is type of exam
-    for id,type in zip(exams_to_report.ids, exams_to_report.types):
-        type=type.split(sep="-")[0]
-        element = WebDriverWait(chrdriver, 10).until(EC.element_to_be_clickable((By.ID, id)))
-        actionChains.double_click(element).perform()
-
-        if type == "PDF":
-            report_pdf()
 
 
-        chrdriver.get(url)
+    #REPORT EXAMS
+    for exam in elements_in_table:
+        tds=exam.find_elements(By.TAG_NAME, "td")
+        name=tds[5].text
+        str=tds[7].text
+        if name in df_ex_to_report.index and str == users.struttura.name:
+            type_exam=df_ex_to_report.loc[name]["file_exam"]
+            actionChains = ActionChains(chrdriver)
+            if type_exam=="PDF":
+                actionChains.double_click(exam).perform()
+                print("Manage pdf repor")
+                chrdriver.get(url_table)
+            elif type_exam=="BORSAM":
+                actionChains.double_click(exam).perform()
+                print("Manage borsam report")
+                chrdriver.get(url_table)
+            else:
+                actionChains.double_click(exam).perform()
+                print("manage all exams")
+                chrdriver.get(url_table)
 
+        #if control status for ech exam by admin, write code here (use another chdriver)
+def report_generic_exam(chrdriver: webdriver.Chrome,):
+    print()
 
-def report_pdf ():
-    print("pdf")
-"""
-
-
-def get_all_exams_POV_admin(chrdriver: webdriver.Chrome, users: classes.users, dir_exams: str):
+def get_all_table_exams_POV_admin(chrdriver: webdriver.Chrome, users: classes.users, dir_exams: str):
+    """
+    Log as amdin and goes to the "Modifica stato esame" page, from this page select the exams of structure in users class,
+    insert dates, from: oldest date between files in exam folder, to: today date.
+    Return a datframe equal to the table in the page, only if all exams are arrived otherwise attend chnage of status.
+    :param chrdriver:
+    :param users:
+    :param dir_exams:
+    :return:
+    """
     df_exams = file_manager.get_path_files_from_folder_path(dir_exams)
     exams=sum([df_exams[col].unique().tolist() for col in df_exams.columns],[]) #get only one unique value list from df_exams
 
@@ -82,31 +99,48 @@ def get_all_exams_POV_admin(chrdriver: webdriver.Chrome, users: classes.users, d
     inser_date_start.send_keys(oldest_exam_date)
     inser_date_end = chrdriver.find_element(By.ID, "inp_date_to")
     inser_date_end.send_keys(datetime.today().date().strftime("%d-%m-%Y").__str__())
-
-    for str in chrdriver.find_elements(By.XPATH,"//*[@id='cc_table']/tbody/tr[2]/td/table/tbody/tr/td/table/tbody/tr/td[2]/table/tbody/tr[1]/td[2]/div/div/ul/li"):
-        span=str.find_elements(By.XPATH, "//a/span[1]")
-        print(span.text)
-        #could find name of str
+    chrdriver.find_element(By.XPATH, "//*[@id='cc_table']/tbody/tr[2]/td/table/tbody/tr/td/table/tbody/tr/td[2]/table/tbody/tr[1]/td[2]/div").click()
+    chrdriver.find_element(By.LINK_TEXT, users.struttura.name).click()
 
     chrdriver.find_element(By.ID, "search").click()
-    # get list of exams finded in platform
 
-#/html/body/div[4]/div/div/div/form/table/tbody/tr[2]/td/table/tbody/tr/td/table/tbody/tr/td[2]/table/tbody/tr[1]/td[2]/div/div/ul/li[9]/a/span[1]
-"""
+    #Create DataFrame that is similar to platform results table
+    #Get one row at time of table
+    table_admin=pd.DataFrame(columns=["DO_invio", "cardio",  "nome", "DO_refertazione", "DO_registrazione", "codice_fiscale", "struttura", "stato"])
     try:
         list_exams_t = chrdriver.find_elements(By.XPATH, "/html/body/div[4]/div/div/div/form/table[2]/tbody/tr")
-        for exam in list_exams_t[1:]:  # first one is col_names
+        for idx, exam in enumerate(start=1, iterable=list_exams_t[1:]):  # first one is col_names
             tds = exam.find_elements(By.TAG_NAME, "td")
-            cf_t = tds[6].text
-            str_t = tds[7].text
+            new_row=[td.text for td in tds[1:8]]
+
             opt_status_t = exam.find_elements(By.TAG_NAME, "option")
             for opt in opt_status_t:
                 if opt.get_attribute("selected"):
                     status_t = opt.text
+                    start = time.time()
+                    while status_t=="InLavorazione":
+                        status_t=[op.text for op in exam.find_elements(By.TAG_NAME, "option") if op.get_attribute("selected")]
+                        if time.time() - start > 59:
+                            print(f"Exam{idx}  processing take more than ONE minute!")
+                            break
+
                     break
-"""
+            new_row.append(status_t)
+            table_admin.loc[len(table_admin)]=new_row
+    except:
+        print("ERROR! No exams are related to the structure.")
+    #table_admin.set_index('cf')
+    return table_admin
 
-
+def label_encoder(encode_param: dict, to_encode: list):
+    """
+    Simply takes dict with labels and corresponding value, and a ist that contains values to encode. Iterate on list_toencode
+    and iterate on dictionary, when elem is equal to val_dict, append to return list
+    :param encode_param:
+    :param to_encode:
+    :return:
+    """
+    return [lbl for elem in to_encode for val, lbl in zip(encode_param.values(), encode_param.keys()) if elem==val]
 
 
 
