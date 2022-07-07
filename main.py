@@ -28,7 +28,10 @@ try:
     #chrome_options = webdriver.ChromeOptions()
     #chrome_options.add_argument("--incognito")
     #private_driver = webdriver.Chrome(df_config.iloc[0]['path_chrome_driver'], options=chrome_options) #opening WebBrowser
-    driver=webdriver.Chrome(config_info.path_chrome_driver)
+    chromeOptions = webdriver.ChromeOptions()
+    prefs = {'safebrowsing.enabled': 'false'}
+    chromeOptions.add_experimental_option("prefs", prefs)
+    driver = webdriver.Chrome(config_info.path_chrome_driver, chrome_options=chromeOptions)
 
 except IOError:
     print("Error opening Chrome, check your ChromeWebDriver installation. For package see https://chromedriver.chromium.org/")
