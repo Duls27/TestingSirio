@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd, os
 from selenium import webdriver
+from datetime import date
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
@@ -29,6 +30,8 @@ def report_more_exams (chrdriver: webdriver.Chrome, users: classes.users, config
     POP elemnt that are BLOCKED, in case of a specific test, remove POP
     """
     ids=df_arrived_exams[df_arrived_exams['stato']=="Bloccato"].index.values.tolist()
+    if len(ids) != 0:
+        print(f"\n\tExam/s with index: {ids} is/are correctly set to BLOCKED!")
     df_arrived_exams.drop(ids, inplace=True)
     """
     Insert data of carica esame and associate to df_arrived exams
@@ -48,29 +51,23 @@ def report_more_exams (chrdriver: webdriver.Chrome, users: classes.users, config
 
     #REPORT EXAMS
     for _ in range(n_exam_to_report):
-        time.sleep(5)
+        time.sleep(3)
         # return all element in table
         #at each iteration cause the platform is updated evry time
         elements_in_table = chrdriver.find_elements(By.XPATH, "//*[@id='idTbodyEcgdarefertare']/*")
-        print(_)
-        print("\n")
         for exam in elements_in_table:
-            print(_)
+
             tds=exam.find_elements(By.TAG_NAME, "td")
             name=tds[5].text
             str=tds[7].text
-            print(name, str)
             if name in df_ex_to_report.index and str == users.struttura.name:
                 print(f"\n Reporting {name}\n")
                 type_exam=df_ex_to_report.loc[name]["file_exam"]
                 actionChains = ActionChains(chrdriver)
                 if type_exam=="pdf" or type_exam=="PDF" :
                     actionChains.double_click(exam).perform()
-                    print("Manage pdf report")
-                    break
-                elif type_exam=="borsam" or type_exam=="BORSAM":
-                    actionChains.double_click(exam).perform()
-                    print("Manage borsam report")
+                    one_row_df = df_ex_to_report.loc[name]
+                    report_pdf_exam(chrdriver=chrdriver, df_esame=one_row_df, path_screen=path_screen, path_report=file_manager.get_specific_file_from_folder("pdf", config_info.path_exams))
                     break
                 else:
                     actionChains.double_click(exam).perform()
@@ -79,7 +76,7 @@ def report_more_exams (chrdriver: webdriver.Chrome, users: classes.users, config
                     break
 
         #if control status for ech exam by admin, write code here (use another chdriver)
-
+'''
 def report_borsam_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen: str, path_report: str):
     flag_dati = check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen)
     downloads_path = str(Path.home() / "Downloads")
@@ -87,11 +84,19 @@ def report_borsam_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path
     flag_download = download_wait(downloads_path, df_esame)
     #open borsam in CER-S
     chrdriver.find_element(By.XPATH, "//*[@id='divIdDownloadEsame']/div/div[2]/div[1]/div[2]/button").click()
-
+'''
+def report_pdf_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen: str, path_report: str):
+    flag_dati = check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen, is_pdf= True)
+    interpretazione=chrdriver.find_element(By.ID, 'interpretazioni_standard')
+    interpretazioni=chrdriver.find_elements(By.ID, 'interpretazioni_standard')
+    for opt in interpretazioni:
+        interpretazione.click()
+        opt.click()
+    print()
 
 
 def report_generic_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen: str, path_report: str):
-    flag_dati=check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen)
+    flag_dati=check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen, is_pdf=False)
     downloads_path = str(Path.home() / "Downloads")
     chrdriver.find_element(By.XPATH, "//*[@id='divIdDownloadEsame']/div/div[2]/div[1]/div/button").click()
     flag_download=download_wait(downloads_path, df_esame)
@@ -102,7 +107,8 @@ def report_generic_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, pat
 
     return  flag_download, flag_dati
 
-def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen:str):
+
+def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen:str, is_pdf: bool):
     flag_res=0
     table_dati_sogg=chrdriver.find_element(By.XPATH, "//*[@id='divIdDatiSoggetto']/div/div[2]/table")
     elements=table_dati_sogg.find_elements(By.TAG_NAME, "tr")
@@ -110,52 +116,141 @@ def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen
         lbl=elem.find_element(By.TAG_NAME, "th").text
         val=elem.find_element(By.TAG_NAME, "td").text
         if lbl == "Nome:":
-            if val != str(df_esame.loc["inp_nome_paziente"] + " " + df_esame.loc["inp_cognome_paziente"]):
-                flag_res=1
+            if  pd.notnull(df_esame.loc["inp_nome_paziente"]) or  pd.notnull(df_esame.loc["inp_cognome_paziente"]):
+                if val != str(df_esame.loc["inp_nome_paziente"] + " " + df_esame.loc["inp_cognome_paziente"]):
+                    flag_res=1
+            else:
+                if val != "":
+                    flag_res = 1
         elif lbl == "C.F.:":
             if val != df_esame.loc["inp_cf_paziente"]:
                 flag_res = 1
         elif lbl == "Data di N.:":
-            if val != df_esame.loc["inp_data_di_nascita"]:
-                flag_res = 1
-        elif lbl == "Razza:":
-            if val != df_esame.loc["inp_sel_razza"]:
-                flag_res = 1
-        elif lbl == "Sesso:":
-            if val != df_esame.loc["inp_sel_sesso"]:
-                flag_res = 1
-
-    table_dati_esame = chrdriver.find_element(By.XPATH, "//*[@id='datiesame']/div/div[3]/div/div[2]/table")
-    elements = table_dati_esame.find_elements(By.TAG_NAME, "tr")
-    for elem in elements:
-        lbl = elem.find_element(By.TAG_NAME, "th").text
-        val = elem.find_element(By.TAG_NAME, "td").text
-        if lbl == "Altezza:":
-            val=val.split(sep=" ")[0] #remove cm
-            if val != df_esame.loc["inp_altezza_paziente"]:
-                flag_res = 1
-        elif lbl == "Peso:":
-            val = val.split(sep=" ")[0]  # remove Kg
-            if val != df_esame.loc["inp_peso_paziente"]:
-                flag_res = 1
-        elif lbl == "Motivo:":
-            if val != df_esame.loc["inp_motivo_esame"]:
-                flag_res = 1
-        elif lbl == "Terapia:":
-            if val != df_esame.loc["inp_terapia"]:
-                flag_res = 1
-        elif lbl == "Pacemaker:":
-            if "SI" in val:
-                if df_esame.loc["inp_check_pacemaker"] != 1:
+            if pd.notnull(df_esame.loc["inp_data_di_nascita"]):
+                if val != df_esame.loc["inp_data_di_nascita"]:
                     flag_res = 1
             else:
-                if df_esame.loc["inp_check_pacemaker"] != np.nan:
+                if val != "":
                     flag_res = 1
-        elif lbl == "Note:":
-            if val != df_esame.loc["inp_note"]:
-                flag_res = 1
-    if flag_res==1:
-        chrdriver.save_screenshot(filename=path_screen + "/error_in_dati.png")
+        elif lbl == "Razza:":
+            if  pd.notnull(df_esame.loc["inp_data_di_nascita"]):
+                if val != df_esame.loc["inp_sel_razza"]:
+                    flag_res = 1
+        elif lbl == "Sesso:":
+            if  pd.notnull(df_esame.loc["inp_data_di_nascita"]):
+                if val != df_esame.loc["inp_sel_sesso"]:
+                    flag_res = 1
+    if is_pdf:
+        #first table
+        table_1=chrdriver.find_element(By.XPATH, "/html/body/div[4]/div/div/div[3]/div/div[2]/table/tbody/tr[1]/td[1]/table")
+        elements = table_1.find_elements(By.TAG_NAME, "tr")
+        for elem in elements:
+            lbl = elem.find_element(By.TAG_NAME, "th").text
+            val = elem.find_element(By.TAG_NAME, "td").text
+            if lbl == "Eta`:":
+                if pd.notnull(df_esame.loc["inp_data_di_nascita"]):
+                    if val != str(age(birthdate=df_esame.loc["inp_data_di_nascita"])):
+                        flag_res = 1
+                else:
+                    if val != "":
+                        flag_res=1
+            elif lbl == "Altezza:":
+                if  pd.notnull(df_esame.loc["inp_altezza_paziente"]):
+                    if val != df_esame.loc["inp_altezza_paziente"]:
+                        flag_res = 1
+                else:
+                    if val != "":
+                        flag_res=1
+            elif lbl == "Peso:":
+                if  pd.notnull(df_esame.loc["inp_peso_paziente"]):
+                    if val != df_esame.loc["inp_peso_paziente"]:
+                        flag_res = 1
+                else:
+                    if val != "":
+                        flag_res = 1
+        # table2
+        table_2 = chrdriver.find_element(By.XPATH,
+                                         "/html/body/div[4]/div/div/div[3]/div/div[2]/table/tbody/tr[1]/td[2]/table")
+        elements = table_2.find_elements(By.TAG_NAME, "tr")
+        for elem in elements:
+            lbl = elem.find_element(By.TAG_NAME, "th").text
+            val = elem.find_element(By.TAG_NAME, "td").text
+            if lbl == "Motivo:":
+                if val != df_esame.loc["inp_motivo_esame"]:
+                    flag_res = 1
+            elif lbl == "Terapia:":
+                if  pd.notnull(df_esame.loc["inp_terapia"]):
+                    if val != df_esame.loc["inp_terapia"]:
+                        flag_res = 1
+                else:
+                    if val != "":
+                        flag_res = 1
+            elif lbl == "Pacemaker:":
+                if str(df_esame.loc["inp_check_pacemaker"]) == "1":
+                    if val != "SI-":
+                        flag_res = 1
+                else:
+                    if val != "NO-":
+                        flag_res = 1
+
+        #table3
+        table_3 = chrdriver.find_element(By.XPATH,"/ html / body / div[4] / div / div / div[3] / div / div[2] / table / tbody / tr[2] / td / table")
+        elements = table_3.find_elements(By.TAG_NAME, "tr")
+        for elem in elements:
+            lbl = elem.find_element(By.TAG_NAME, "th").text
+            val = elem.find_element(By.TAG_NAME, "td").text
+            if lbl == "Note:":
+                if  pd.notnull(df_esame.loc["inp_note"]):
+                    if val != df_esame.loc["inp_note"]:
+                        flag_res = 1
+                else:
+                    if val != "":
+                        flag_res = 1
+
+    else:
+        table_dati_esame = chrdriver.find_element(By.XPATH, "//*[@id='datiesame']/div/div[3]/div/div[2]/table")
+        elements = table_dati_esame.find_elements(By.TAG_NAME, "tr")
+        for elem in elements:
+            lbl = elem.find_element(By.TAG_NAME, "th").text
+            val = elem.find_element(By.TAG_NAME, "td").text
+            if lbl == "Altezza:":
+                if not pd.notnull(df_esame.loc["inp_altezza_paziente"]):
+                    val=val.split(sep=" ")[0] #remove cm
+                    if val != df_esame.loc["inp_altezza_paziente"]:
+                        flag_res = 1
+                else:
+                    if val != "":
+                        flag_res = 1
+            elif lbl == "Peso:":
+                if not pd.notnull(df_esame.loc["inp_peso_paziente"]):
+                    val = val.split(sep=" ")[0]  # remove Kg
+                    if val != df_esame.loc["inp_peso_paziente"]:
+                        flag_res = 1
+                else:
+                    if val != "":
+                        flag_res = 1
+            elif lbl == "Motivo:":
+                if val != df_esame.loc["inp_motivo_esame"]:
+                    flag_res = 1
+            elif lbl == "Terapia:":
+                if val != df_esame.loc["inp_terapia"]:
+                    flag_res = 1
+            elif lbl == "Pacemaker:":
+                if "SI" in val:
+                    if df_esame.loc["inp_check_pacemaker"] != 1:
+                        flag_res = 1
+                else:
+                    if df_esame.loc["inp_check_pacemaker"] != np.nan:
+                        flag_res = 1
+            elif lbl == "Note:":
+                if not pd.notnull(df_esame.loc["inp_note"]):
+                    if val != df_esame.loc["inp_note"]:
+                        flag_res = 1
+                else:
+                    if val != "":
+                        flag_res = 1
+        if flag_res==1:
+            chrdriver.save_screenshot(filename=path_screen + "/error_in_dati.png")
 
     return flag_res
 
@@ -220,13 +315,16 @@ def get_all_table_exams_POV_admin(chrdriver: webdriver.Chrome, users: classes.us
 def download_wait(path_to_downloads, df_esame: pd.DataFrame):
     seconds = 0
     dl_wait = True
-    while dl_wait and seconds < 20:
+    while dl_wait and seconds < 30:
         time.sleep(1)
         for fname in os.listdir(path_to_downloads):
-            if fname.endswith(df_esame.loc["file_exam"]):
+            if df_esame.loc["file_exam"] in ["borsam", "BORSAM"]:
+                if fname.endswith("ACecg"):
+                    dl_wait = False
+            elif fname.endswith(df_esame.loc["file_exam"]):
                 dl_wait = False
         seconds += 1
-    if seconds < 20:
+    if seconds < 30:
         print(f"\tFile downloaded correctly \n")
         return 0
     else:
@@ -245,7 +343,10 @@ def label_encoder(encode_param: dict, to_encode: list):
 
 
 
-
+def age(birthdate):
+    today = date.today()
+    age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
+    return age
 
 
 
