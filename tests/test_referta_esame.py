@@ -1,5 +1,7 @@
+import string
 import time
 from pathlib import Path
+from string import digits
 import numpy as np
 import pandas as pd, os
 from selenium import webdriver
@@ -94,7 +96,6 @@ def report_pdf_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_sc
         opt.click()
     print()
 
-
 def report_generic_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen: str, path_report: str):
     flag_dati=check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen, is_pdf=False)
     downloads_path = str(Path.home() / "Downloads")
@@ -107,9 +108,9 @@ def report_generic_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, pat
 
     return  flag_download, flag_dati
 
-
 def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen:str, is_pdf: bool):
     flag_res=0
+    lbl_flag=""
     table_dati_sogg=chrdriver.find_element(By.XPATH, "//*[@id='divIdDatiSoggetto']/div/div[2]/table")
     elements=table_dati_sogg.find_elements(By.TAG_NAME, "tr")
     for elem in elements:
@@ -117,57 +118,47 @@ def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen
         val=elem.find_element(By.TAG_NAME, "td").text
         if lbl == "Nome:":
             if  pd.notnull(df_esame.loc["inp_nome_paziente"]) or  pd.notnull(df_esame.loc["inp_cognome_paziente"]):
-                if val != str(df_esame.loc["inp_nome_paziente"] + " " + df_esame.loc["inp_cognome_paziente"]):
-                    flag_res=1
+                if val != str(df_esame.loc["inp_nome_paziente"] + " " + df_esame.loc["inp_cognome_paziente"]):flag_res=1
             else:
-                if val != "":
-                    flag_res = 1
+                if val != "":flag_res = 1;lbl_flag=lbl
         elif lbl == "C.F.:":
-            if val != df_esame.loc["inp_cf_paziente"]:
-                flag_res = 1
+            if val != df_esame.loc["inp_cf_paziente"]:flag_res = 1;lbl_flag=lbl
         elif lbl == "Data di N.:":
             if pd.notnull(df_esame.loc["inp_data_di_nascita"]):
-                if val != df_esame.loc["inp_data_di_nascita"]:
-                    flag_res = 1
+                if val != df_esame.loc["inp_data_di_nascita"]: flag_res = 1;lbl_flag=lbl
             else:
-                if val != "":
-                    flag_res = 1
+                if val != "": flag_res = 1;lbl_flag=lbl
         elif lbl == "Razza:":
-            if  pd.notnull(df_esame.loc["inp_data_di_nascita"]):
-                if val != df_esame.loc["inp_sel_razza"]:
-                    flag_res = 1
+            if pd.notnull(df_esame.loc["inp_data_di_nascita"]):
+                if val != df_esame.loc["inp_sel_razza"]:flag_res = 1;lbl_flag=lbl
         elif lbl == "Sesso:":
-            if  pd.notnull(df_esame.loc["inp_data_di_nascita"]):
-                if val != df_esame.loc["inp_sel_sesso"]:
-                    flag_res = 1
+            if pd.notnull(df_esame.loc["inp_data_di_nascita"]):
+                if val != df_esame.loc["inp_sel_sesso"]:flag_res = 1;lbl_flag=lbl
     if is_pdf:
         #first table
         table_1=chrdriver.find_element(By.XPATH, "/html/body/div[4]/div/div/div[3]/div/div[2]/table/tbody/tr[1]/td[1]/table")
         elements = table_1.find_elements(By.TAG_NAME, "tr")
-        for elem in elements:
+        for index,elem in enumerate(elements):
             lbl = elem.find_element(By.TAG_NAME, "th").text
             val = elem.find_element(By.TAG_NAME, "td").text
             if lbl == "Eta`:":
-                if pd.notnull(df_esame.loc["inp_data_di_nascita"]):
-                    if val != str(age(birthdate=df_esame.loc["inp_data_di_nascita"])):
-                        flag_res = 1
-                else:
-                    if val != "":
-                        flag_res=1
+                continue
+                #if pd.notnull(df_esame.loc["inp_data_di_nascita"]):
+                    #if val != str(age(birthdate=df_esame.loc["inp_data_di_nascita"])):flag_res = 1;lbl_flag=lbl
+                #else:
+                    #if val != "":flag_res=1;lbl_flag=lbl
             elif lbl == "Altezza:":
-                if  pd.notnull(df_esame.loc["inp_altezza_paziente"]):
-                    if val != df_esame.loc["inp_altezza_paziente"]:
-                        flag_res = 1
+                val = ''.join(c for c in val if c in digits)  # remove cm
+                if pd.notnull(df_esame.loc["inp_altezza_paziente"]):
+                    if val != df_esame.loc["inp_altezza_paziente"]:flag_res = 1;lbl_flag=lbl
                 else:
-                    if val != "":
-                        flag_res=1
+                    if val != "":flag_res=1;lbl_flag=lbl
             elif lbl == "Peso:":
-                if  pd.notnull(df_esame.loc["inp_peso_paziente"]):
-                    if val != df_esame.loc["inp_peso_paziente"]:
-                        flag_res = 1
+                val = ''.join(c for c in val if c in digits)  # remove kg
+                if pd.notnull(df_esame.loc["inp_peso_paziente"]):
+                    if val != df_esame.loc["inp_peso_paziente"]:flag_res = 1;lbl_flag=lbl
                 else:
-                    if val != "":
-                        flag_res = 1
+                    if val != "":flag_res = 1;lbl_flag=lbl
         # table2
         table_2 = chrdriver.find_element(By.XPATH,
                                          "/html/body/div[4]/div/div/div[3]/div/div[2]/table/tbody/tr[1]/td[2]/table")
@@ -176,22 +167,17 @@ def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen
             lbl = elem.find_element(By.TAG_NAME, "th").text
             val = elem.find_element(By.TAG_NAME, "td").text
             if lbl == "Motivo:":
-                if val != df_esame.loc["inp_motivo_esame"]:
-                    flag_res = 1
+                if val != df_esame.loc["inp_motivo_esame"]:flag_res = 1;lbl_flag=lbl
             elif lbl == "Terapia:":
-                if  pd.notnull(df_esame.loc["inp_terapia"]):
-                    if val != df_esame.loc["inp_terapia"]:
-                        flag_res = 1
+                if pd.notnull(df_esame.loc["inp_terapia"]):
+                    if val != df_esame.loc["inp_terapia"]:flag_res = 1;lbl_flag=lbl
                 else:
-                    if val != "":
-                        flag_res = 1
+                    if val != "":flag_res = 1;lbl_flag=lbl
             elif lbl == "Pacemaker:":
-                if str(df_esame.loc["inp_check_pacemaker"]) == "1":
-                    if val != "SI-":
-                        flag_res = 1
+                if df_esame.loc["inp_check_pacemaker"] == 1:
+                    if val != "SI-":flag_res = 1;lbl_flag=lbl
                 else:
-                    if val != "NO-":
-                        flag_res = 1
+                    if val != "NO-":flag_res = 1;lbl_flag=lbl
 
         #table3
         table_3 = chrdriver.find_element(By.XPATH,"/ html / body / div[4] / div / div / div[3] / div / div[2] / table / tbody / tr[2] / td / table")
@@ -201,56 +187,54 @@ def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen
             val = elem.find_element(By.TAG_NAME, "td").text
             if lbl == "Note:":
                 if  pd.notnull(df_esame.loc["inp_note"]):
-                    if val != df_esame.loc["inp_note"]:
-                        flag_res = 1
+                    if val != df_esame.loc["inp_note"]:flag_res = 1;lbl_flag=lbl
                 else:
-                    if val != "":
-                        flag_res = 1
+                    if val != "":flag_res = 1;lbl_flag=lbl
+        if flag_res==1:
+            chrdriver.save_screenshot(filename=path_screen + "/error_in_dati.png")
+            print(f"\tAll exam data are     NOT     correctly reported, check label {lbl_flag}")
+        else:
+            print("\tAll exam data are correctly reported")
 
     else:
         table_dati_esame = chrdriver.find_element(By.XPATH, "//*[@id='datiesame']/div/div[3]/div/div[2]/table")
         elements = table_dati_esame.find_elements(By.TAG_NAME, "tr")
-        for elem in elements:
+        for index,elem in enumerate(elements):
             lbl = elem.find_element(By.TAG_NAME, "th").text
             val = elem.find_element(By.TAG_NAME, "td").text
+            if index == 0 or index == 7:
+                continue
             if lbl == "Altezza:":
-                if not pd.notnull(df_esame.loc["inp_altezza_paziente"]):
-                    val=val.split(sep=" ")[0] #remove cm
-                    if val != df_esame.loc["inp_altezza_paziente"]:
-                        flag_res = 1
+                val = ''.join(c for c in val if c in digits)  # remove cm
+                if pd.notnull(df_esame.loc["inp_altezza_paziente"]):
+                    if val !=str(df_esame.loc["inp_altezza_paziente"]):flag_res = 1;lbl_flag=lbl
                 else:
-                    if val != "":
-                        flag_res = 1
+                    if val != "":flag_res = 1;lbl_flag=lbl
             elif lbl == "Peso:":
-                if not pd.notnull(df_esame.loc["inp_peso_paziente"]):
-                    val = val.split(sep=" ")[0]  # remove Kg
-                    if val != df_esame.loc["inp_peso_paziente"]:
-                        flag_res = 1
+                val = ''.join(c for c in val if c in digits)  # remove kg
+                if pd.notnull(df_esame.loc["inp_peso_paziente"]):
+                    if val != str(df_esame.loc["inp_peso_paziente"]):flag_res = 1;lbl_flag=lbl
                 else:
-                    if val != "":
-                        flag_res = 1
+                    if val != "":flag_res = 1;lbl_flag=lbl
             elif lbl == "Motivo:":
-                if val != df_esame.loc["inp_motivo_esame"]:
-                    flag_res = 1
+                if val != df_esame.loc["inp_motivo_esame"]:flag_res = 1;lbl_flag=lbl
             elif lbl == "Terapia:":
-                if val != df_esame.loc["inp_terapia"]:
-                    flag_res = 1
+                if val != df_esame.loc["inp_terapia"]:flag_res = 1;lbl_flag=lbl
             elif lbl == "Pacemaker:":
                 if "SI" in val:
-                    if df_esame.loc["inp_check_pacemaker"] != 1:
-                        flag_res = 1
+                    if int(df_esame.loc["inp_check_pacemaker"]) != 1:flag_res = 1;lbl_flag=lbl
                 else:
-                    if df_esame.loc["inp_check_pacemaker"] != np.nan:
-                        flag_res = 1
+                    if pd.notnull(df_esame.loc["inp_check_pacemaker"]):flag_res = 1;lbl_flag=lbl
             elif lbl == "Note:":
-                if not pd.notnull(df_esame.loc["inp_note"]):
-                    if val != df_esame.loc["inp_note"]:
-                        flag_res = 1
+                if pd.notnull(df_esame.loc["inp_note"]):
+                    if val != df_esame.loc["inp_note"]:flag_res = 1;lbl_flag=lbl
                 else:
-                    if val != "":
-                        flag_res = 1
+                    if val != "":flag_res = 1;lbl_flag=lbl
         if flag_res==1:
             chrdriver.save_screenshot(filename=path_screen + "/error_in_dati.png")
+            print(f"\tAll exam data are     NOT     correctly reported, check label {lbl_flag}")
+        else:
+            print("\tAll exam data are correctly reported")
 
     return flag_res
 
@@ -341,9 +325,8 @@ def label_encoder(encode_param: dict, to_encode: list):
     """
     return [lbl for elem in to_encode for val, lbl in zip(encode_param.values(), encode_param.keys()) if elem==val]
 
-
-
-def age(birthdate):
+def age(birthdate: str):
+    birthdate=datetime.strptime(birthdate.replace("-","/"), '%d/%m/%Y')
     today = date.today()
     age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
     return age

@@ -1,6 +1,9 @@
 import  structure_and_users_manager, classes, test_manager, sys
 import os, pandas as pd
 from selenium import webdriver
+import warnings
+
+warnings.filterwarnings("ignore")
 
 ############################################  INFORMATION REQUIRED  ####################################################
 
