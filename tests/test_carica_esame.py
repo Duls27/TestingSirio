@@ -42,7 +42,7 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
     for n_row_CE in df_carica_esame.index:
         print(f"Sending exams n. {n_row_CE}...")
         element = WebDriverWait(chrdriver, 10).until(EC.element_to_be_clickable((By.LINK_TEXT, "Carica")))
-        element.click();
+        element.click()
         #Check if carica esame is CaricaPDF
         if df_carica_esame.iloc[n_row_CE]["file_exam"] in ["pdf", "PDF"]:
             chrdriver.find_element_by_link_text("Esame PDF").click()

@@ -58,7 +58,7 @@ for platform in platforms:
     print(f"\n*******************************************************************************"
           f"\n Controlling if users exist for: {name_platform}\n")
 
-    #driver.get(platform)  # Open Page to platform
+    driver.get(platform)  # Open Page to platform
     #structure_and_users_manager.check_structure_existence(chrdriver=driver,config_info= config_info, users=users,platform=platform)
 
     print(f"\n*******************************************************************************"
