@@ -34,7 +34,7 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
     df_diary_path = file_manager.get_path_files_from_folder_path(folder_path=config_info.path_diaries)
     #set Df for final_result
 
-    index_final=[]
+    index_final=df_carica_esame["inp_cf_paziente"].values.tolist()
     data_final=[]
     sended_exam=[]
     #declaration for modify glob_var
@@ -57,7 +57,6 @@ def send_more_exams (chrdriver: webdriver.Chrome, config_info: classes.configura
         #do Carica esame for one row
         err_final=carica_esame(chrdriver=chrdriver, one_row_ce= one_row_ce, df_exams_path=df_exams_path, df_diary_path=df_diary_path, err_setted=err_setted, folder_exam=folder_exam)
 
-        index_final.append(str("CE" + str(n_row_CE)))
         flag_res, flag_sended=err_final.get_flagRes_flagSend()
         data_final.append(flag_res)
         sended_exam.append(flag_sended)

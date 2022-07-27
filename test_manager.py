@@ -16,20 +16,28 @@ def test_gateway (chrdriver: webdriver.Chrome, config_info: classes.configuratio
     :param users: users class
     :param folder_platform: folder path of the specific platform, to save results
     """
+    flags_to_do={"ce": 0, "re": 0}
     for exam in lista_test_platofrom.keys():
         # Create folder for result of specific exam in platform
         folder_exam = str(folder_platform + "/" + exam)
         do_or_not=lista_test_platofrom.loc[exam]
         if not np.isnan(do_or_not):
             if exam == "carica_esame":
+                flags_to_do["ce"]=1
                 print("\nInitializing test CARICA ESAME")
-                final_df_ce, sendedExam =test_carica_esame.send_more_exams(chrdriver=chrdriver, config_info=config_info, users= users, folder_exam=folder_exam)
+                final_df_CE, sendedExam =test_carica_esame.send_more_exams(chrdriver=chrdriver, config_info=config_info, users= users, folder_exam=folder_exam)
             elif exam == "referta_esame":
+                flags_to_do["re"] = 1
                 print("\nInitializing test REFERTA ESAME")
-                test_referta_esame.report_more_exams(chrdriver=chrdriver, users=users, config_info=config_info, sended_exam= sendedExam, path_screen=folder_exam)#sended_exam da sostituire #[1,1,-1,0,0,1,1]
+                final_df_RE=test_referta_esame.report_more_exams(chrdriver=chrdriver, users=users, config_info=config_info, sended_exam= sendedExam, path_screen=folder_exam)#sended_exam da sostituire #[1,1,1,-1,0,0,1]
             else:
                 print("Exam not in list")
-
-
-    #with pd.ExcelWriter(config_info.path_output, mode='a') as writer:
-        #final_df_ce.to_excel(writer, sheet_name='Sheet_name_3')
+    final_df_CE=final_df_RE
+    with pd.ExcelWriter(config_info.path_output, mode='a') as writer:
+        if flags_to_do.values() == [1,0]:
+            final_df_CE.to_excel(writer, sheet_name='Sheet_name_3')
+        elif flags_to_do.values() == [0,1]:
+            final_df_RE.to_excel(writer, sheet_name='Sheet_name_3')
+        elif flags_to_do.values()==[1,1]:
+            result = pd.concat([final_df_CE, final_df_RE], axis=1, join='inner')
+            result.to_excel(writer, sheet_name='Sheet_name_3')

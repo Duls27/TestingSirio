@@ -1,4 +1,3 @@
-import string
 import time, sys
 from pathlib import Path
 from string import digits
@@ -13,33 +12,31 @@ from selenium.webdriver.common.by import By
 from datetime import datetime
 import classes, file_manager
 
-
-
 def report_more_exams (chrdriver: webdriver.Chrome, users: classes.users, config_info: classes.configuration_info, sended_exam: list, path_screen:str):
 
-    df_referta_esame = pd.read_excel(config_info.path_input, sheet_name="referta_esame")
+    df_ce = pd.read_excel(config_info.path_input, sheet_name="carica_esame")
     url_platform=chrdriver.current_url
     #Check that exams are arrived, viewing from ADMIN
-    df_referta_esame["stato"]=label_encoder(encode_param={'Refertabile': 1, "0": 0, 'Bloccato': -1},to_encode=sended_exam)
+    df_ce["stato"]=label_encoder(encode_param={'Refertabile': 1, "0": 0, 'Bloccato': -1},to_encode=sended_exam)
+    df_ce["nome_cognome"]= df_ce["inp_nome_paziente"] + " " + df_ce["inp_cognome_paziente"]
     df_exams_status = get_all_table_exams_POV_admin(chrdriver=chrdriver, users=users, dir_exams=config_info.path_exams)
-    n_sende_exam=np.count_nonzero(a=sended_exam) #0 aren't sended
+    n_sended_exams=np.count_nonzero(a=sended_exam) #0 aren't sended
     # drop elemnt that are not sended (in sended_list=0), control if other exams are arrived
-    df_arrived_exams=pd.merge(df_referta_esame, df_exams_status, on=["stato", "codice_fiscale"], how="inner")
-    if n_sende_exam != df_arrived_exams.shape[0]:
+    df_arrived_exams=pd.merge(df_ce, df_exams_status, on=["stato", "codice_fiscale"], how="inner")
+    if n_sended_exams != df_arrived_exams.shape[0]:
         print("ERROR...  Number of sended exam is different from Admin POV")
         return 1
     """
     POP elemnt that are BLOCKED, in case of a specific test, remove POP
     """
     ids=df_arrived_exams[df_arrived_exams['stato']=="Bloccato"].index.values.tolist()
-    if len(ids) != 0:
-        print(f"\n\tExam/s with index: {ids} is/are correctly set to BLOCKED!")
+    if len(ids) != 0:print(f"\n\tExam/s with index: {ids} is/are correctly set to BLOCKED!")
     df_arrived_exams.drop(ids, inplace=True)
     """
     Insert data of carica esame and associate to df_arrived exams
     """
-    df_ce = pd.read_excel(config_info.path_input, sheet_name="carica_esame").drop_duplicates(subset="inp_cf_paziente")
-    df_ex_to_report=pd.merge(df_arrived_exams, df_ce, left_on="codice_fiscale", right_on="inp_cf_paziente", how='inner').set_index('nome_cognome')
+    df_ce_todrop = pd.read_excel(config_info.path_input, sheet_name="carica_esame").drop_duplicates(subset="inp_cf_paziente")
+    df_ex_to_report=pd.merge(df_arrived_exams, df_ce_todrop, left_on="codice_fiscale", right_on="inp_cf_paziente", how='inner').set_index('nome_cognome')
 
     chrdriver.get(url_platform)
     #Enter as Cardio for report exams
@@ -50,8 +47,9 @@ def report_more_exams (chrdriver: webdriver.Chrome, users: classes.users, config
     actionChains.double_click(tutti).perform()
     n_exam_to_report=df_ex_to_report.index.shape[0]
 
+    results_final = pd.DataFrame(index=df_ce["inp_cf_paziente"].values.tolist(),columns=["Referta Esame"])
     #REPORT EXAMS
-    for _ in range(n_exam_to_report):
+    for idx in range(n_exam_to_report):
         time.sleep(3)
         # return all element in table
         #at each iteration cause the platform is updated evry time
@@ -60,21 +58,44 @@ def report_more_exams (chrdriver: webdriver.Chrome, users: classes.users, config
 
             tds=exam.find_elements(By.TAG_NAME, "td")
             name=tds[5].text
-            str=tds[7].text
-            if name in df_ex_to_report.index and str == users.struttura.name:
+            structure=tds[7].text
+            if name in df_ex_to_report.index and structure == users.struttura.name:
                 print(f"\n Reporting {name}\n")
                 type_exam=df_ex_to_report.loc[name]["file_exam"]
                 actionChains = ActionChains(chrdriver)
                 if type_exam=="pdf" or type_exam=="PDF" :
                     actionChains.double_click(exam).perform()
                     one_row_df = df_ex_to_report.loc[name]
-                    report_pdf_exam(chrdriver=chrdriver, df_esame=one_row_df, path_screen=path_screen, path_report=file_manager.get_specific_file_from_folder("pdf", config_info.path_exams))
-                    break
+                    flag_dwn=0
+                    flag_dati, lbl_dati=report_pdf_exam(chrdriver=chrdriver, df_esame=one_row_df, path_screen=path_screen, path_report=file_manager.get_specific_file_from_folder("pdf", config_info.path_exams))
+
                 else:
                     actionChains.double_click(exam).perform()
                     one_row_df=df_ex_to_report.loc[name]
-                    flag_dwn, flag_dati=report_generic_exam(chrdriver=chrdriver, df_esame=one_row_df, path_screen=path_screen, path_report=file_manager.get_specific_file_from_folder("pdf", config_info.path_exams))
-                    break
+                    flag_dwn, flag_dati, lbl_dati=report_generic_exam(chrdriver=chrdriver, df_esame=one_row_df, path_screen=path_screen, path_report=file_manager.get_specific_file_from_folder("pdf", config_info.path_exams))
+
+                cf=one_row_df.loc["inp_cf_paziente"]
+                if flag_dwn == 0 and flag_dati == 0:
+                    results_final.loc[cf]["Referta Esame"]=0
+                else:
+                    results_final.loc[cf]["Referta Esame"] = 1
+                break
+
+    chrdriver.find_element(By.ID, "idTokenBysms").click()
+
+    SMS = input(f"A PIN Message is sended to {users.cardio.usr}, please insert in terminal and after press INVIO")
+
+    while (SMS.isnumeric() and len(SMS) < 10) != True:
+        print("ERROR! ")
+        SMS = input(f"\tPlease insert numeric valid values (max_len is 10)!")
+
+    chrdriver.find_element(By.ID, "inp_token").send_keys(SMS)
+    chrdriver.find_element(By.ID, "inp_check_accepted").click()
+    chrdriver.find_element(By.ID, "idBtnFirmareferti").click()
+
+    return results_final
+
+
 
         #if control status for ech exam by admin, write code here (use another chdriver)
 '''
@@ -87,16 +108,18 @@ def report_borsam_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path
     chrdriver.find_element(By.XPATH, "//*[@id='divIdDownloadEsame']/div/div[2]/div[1]/div[2]/button").click()
 '''
 def report_pdf_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen: str, path_report: str):
-    flag_dati = check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen, is_pdf= True)
+    flag_dati, lbl_dati = check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen, is_pdf= True)
     interpretazione=chrdriver.find_element(By.ID, 'interpretazioni_standard')
     for opt in interpretazione.find_elements(By.TAG_NAME, "option"):
         interpretazione.click()
         opt.click()
     chrdriver.find_element(By.ID, "crea_referto").click()
-    print("")
+    chrdriver.find_element(By.XPATH, "/html/body/div[4]/div/div/div/div[2]/div[3]/form/button").click()
+
+    return flag_dati, lbl_dati
 
 def report_generic_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen: str, path_report: str):
-    flag_dati=check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen, is_pdf=False)
+    flag_dati, lbl_dati=check_dati(chrdriver=chrdriver, df_esame=df_esame, path_screen=path_screen, is_pdf=False)
     downloads_path = str(Path.home() / "Downloads")
     chrdriver.find_element(By.XPATH, "//*[@id='divIdDownloadEsame']/div/div[2]/div[1]/div/button").click()
     flag_download=download_wait(downloads_path, df_esame)
@@ -105,7 +128,7 @@ def report_generic_exam(chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, pat
     chrdriver.find_element(By.ID, "Carica").click()
     chrdriver.find_element(By.XPATH, "/html/body/div[4]/div/div/div/div[2]/div[3]/form/button").click()
 
-    return  flag_download, flag_dati
+    return  flag_download, flag_dati, lbl_dati
 
 def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen:str, is_pdf: bool):
     flag_res=0
@@ -154,7 +177,7 @@ def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen
             val = elem.find_element(By.TAG_NAME, "td").text
             if lbl == "Eta`:":
                 if pd.notnull(df_esame.loc["inp_data_di_nascita"]):
-                    if val != str(age(birthdate=df_esame.loc["inp_data_di_nascita"])):
+                    if val != str(get_age(birthdate=df_esame.loc["inp_data_di_nascita"])):
                         flag_res = 1
                         lbl_flag.append(lbl)
                 elif len(val):
@@ -285,7 +308,7 @@ def check_dati (chrdriver: webdriver.Chrome, df_esame: pd.DataFrame, path_screen
         else:
             print("\tAll exam data are correctly reported")
 
-    return flag_res
+    return flag_res, lbl_flag
 
 def get_all_table_exams_POV_admin(chrdriver: webdriver.Chrome, users: classes.users, dir_exams: str):
     """
@@ -324,12 +347,11 @@ def get_all_table_exams_POV_admin(chrdriver: webdriver.Chrome, users: classes.us
         n_exams_in_table=len(chrdriver.find_elements(By.XPATH, "/html/body/div[4]/div/div/div/form/table[2]/tbody/tr"))
         index=1
         while index < n_exams_in_table:
-            print(f"While:\n \t {index}")
-            chrdriver.find_element(By.ID, "search").click()
+            if index!=1:
+                chrdriver.find_element(By.ID, "search").click()
             list_exams_in_t=chrdriver.find_elements(By.XPATH, "/html/body/div[4]/div/div/div/form/table[2]/tbody/tr")
             list_from_index=list_exams_in_t[index:]
             for exam in list_from_index:  # first one is col_names
-                print(index)
                 tds = exam.find_elements(By.TAG_NAME, "td")
                 new_row=[td.text for td in tds[1:8]]
                 #get status
@@ -339,8 +361,9 @@ def get_all_table_exams_POV_admin(chrdriver: webdriver.Chrome, users: classes.us
                         status_t = opt.text
                 #control if in lavorazione
                 if status_t == "InLavorazione":
-                    time.sleep(5)
+                    time.sleep(10)
                     break
+
                 index += 1
                 new_row.append(status_t)
                 table_admin.loc[len(table_admin)]=new_row
@@ -349,14 +372,13 @@ def get_all_table_exams_POV_admin(chrdriver: webdriver.Chrome, users: classes.us
         filename = exception_traceback.tb_frame.f_code.co_filename
         line_number = exception_traceback.tb_lineno
         print(f"Error in {filename}, row {line_number}")
-    print("")
     #table_admin.set_index('cf')
     return table_admin
 
 def download_wait(path_to_downloads, df_esame: pd.DataFrame):
     seconds = 0
     dl_wait = True
-    while dl_wait and seconds < 30:
+    while dl_wait and seconds < 90:
         time.sleep(1)
         for fname in os.listdir(path_to_downloads):
             if df_esame.loc["file_exam"] in ["borsam", "BORSAM"]:
@@ -365,7 +387,7 @@ def download_wait(path_to_downloads, df_esame: pd.DataFrame):
             elif fname.endswith(df_esame.loc["file_exam"]):
                 dl_wait = False
         seconds += 1
-    if seconds < 30:
+    if seconds < 90:
         print(f"\tFile downloaded correctly \n")
         return 0
     else:
@@ -382,7 +404,7 @@ def label_encoder(encode_param: dict, to_encode: list):
     """
     return [lbl for elem in to_encode for val, lbl in zip(encode_param.values(), encode_param.keys()) if elem==val]
 
-def age(birthdate: str):
+def get_age(birthdate: str):
     birthdate=datetime.strptime(birthdate.replace("-","/"), '%d/%m/%Y')
     today = date.today()
     age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
